@@ -3669,30 +3669,45 @@
       };
       const serviceClass = name => /elite/i.test(name) ? 'elite' : /plus/i.test(name) ? 'plus' : /esencial/i.test(name) ? 'esencial' : '';
 
+      // Mapeo de inventario desde BD al formato del frontend
+      function mapInventory(inv) {
+        return (inv || []).map(p => ({
+          sku: p.sku, name: p.name, category: p.category,
+          categoryLabel: p.category_label || p.categoryLabel || p.category,
+          price: Number(p.price), stock: p.stock, presentation: p.presentation,
+          description: p.description || '', image_url: p.image_url || '',
+          type: 'product'
+        }));
+      }
+
       async function loadState() {
-        // Cargar desde API (PostgreSQL)
+        // ── 1. INVENTARIO (público, siempre) ──────────────────────────────
         try {
-          const [inv, cli, sls, appts] = await Promise.all([
-            api.getInventory().catch(() => []),
+          const inv = await api.getInventory();
+          if (Array.isArray(inv) && inv.length > 0) {
+            state.inventory = mapInventory(inv);
+          }
+        } catch(e) {
+          console.warn('[API] Inventario no disponible, usando baseCatalog:', e.message);
+          state.inventory = baseCatalog.map(p => ({ ...p, stock: 10, type: 'product' }));
+        }
+
+        // ── 2. DATOS PRIVADOS (solo si hay sesión activa) ─────────────────
+        if (!state.role) return;   // sin login → solo catálogo público
+
+        try {
+          const [cli, sls, appts] = await Promise.all([
             api.getClients().catch(() => []),
             api.getSales().catch(() => []),
             api.getAppointments().catch(() => [])
           ]);
-          // Mapear inventario de la BD al formato del frontend
-          state.inventory = (inv || []).map(p => ({
-            sku: p.sku, name: p.name, category: p.category,
-            categoryLabel: p.category_label || p.categoryLabel || p.category,
-            price: Number(p.price), stock: p.stock, presentation: p.presentation,
-            description: p.description || '', image_url: p.image_url || '',
-            type: 'product'
-          }));
-          // Mapear clientes
+
           state.clients = (cli || []).map(c => ({
             id: c.id, name: c.name, phone: c.phone || '',
             carType: c.car_type || c.carType || '', notes: c.notes || '',
             points: c.points || 0
           }));
-          // Mapear ventas
+
           state.sales = (sls || []).map(s => ({
             id: s.id, timestamp: s.created_at || s.timestamp,
             items: (s.items || []).map(i => ({ name: i.name, sku: i.sku, price: Number(i.price), qty: i.qty, type: i.sku ? 'product' : 'service', key: i.sku || i.name })),
@@ -3701,29 +3716,30 @@
             feeRate: Number(s.fee_rate || 0),
             clientId: s.client_id || '', clientName: s.client_name || ''
           }));
-          // Mapear citas
+
           state.appointments = (appts || []).map(a => ({
             id: a.id, client: a.client, service: a.service,
             date: a.date, time: a.time, address: a.address || '',
             notes: a.notes || '', status: a.status || 'pendiente'
           }));
+
           state.lastSale = state.sales[0] || null;
-          // Cargar caja activa
-          try {
-            const cash = await api.getActiveCash();
-            if (cash && cash.id) {
-              state.cashSessions = [{
-                id: cash.id, openedAt: cash.opened_at, initialAmount: Number(cash.initial_amount),
-                incomes: (cash.incomes || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
-                expenses: (cash.expenses || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
-                closed: false, closedAt: ''
-              }];
-            }
-          } catch(e) { /* sin caja activa */ }
-        } catch (e) {
-          console.warn('[API] Error cargando datos, usando baseCatalog local:', e.message);
-          state.inventory = baseCatalog.map(p => ({ ...p, stock: 10, type: 'product' }));
+        } catch(e) {
+          console.warn('[API] Error cargando datos privados:', e.message);
         }
+
+        // ── 3. CAJA ACTIVA (solo si hay sesión) ───────────────────────────
+        try {
+          const cash = await api.getActiveCash();
+          if (cash && cash.id) {
+            state.cashSessions = [{
+              id: cash.id, openedAt: cash.opened_at, initialAmount: Number(cash.initial_amount),
+              incomes: (cash.incomes || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+              expenses: (cash.expenses || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+              closed: false, closedAt: ''
+            }];
+          }
+        } catch(e) { /* sin caja activa o sin sesión */ }
       }
 
       // persistAll: las escrituras ahora van a la API individualmente
