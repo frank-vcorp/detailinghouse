@@ -3133,6 +3133,65 @@
     </div>
   <script>
     const WHATSAPP_BASE = 'https://wa.me/524461153815';
+    const API_BASE = 'https://detailinghouse-api-production.up.railway.app/api';
+    let apiToken = null;
+    let apiUser = null;
+
+    // === API CLIENT ===
+    const api = {
+        async request(path, options = {}) {
+            const url = `${API_BASE}${path}`;
+            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+            if (apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
+            try {
+                const resp = await fetch(url, { ...options, headers });
+                if (resp.status === 401) { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); throw new Error('Sesión expirada'); }
+                if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || `HTTP ${resp.status}`); }
+                const text = await resp.text();
+                return text ? JSON.parse(text) : null;
+            } catch (e) {
+                if (e.message === 'Failed to fetch' || e.message === 'NetworkError') {
+                    console.warn('[API] Sin conexión, usando datos locales');
+                }
+                throw e;
+            }
+        },
+        // Auth
+        async login(username, password) {
+            const data = await this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+            if (data.token) { apiToken = data.token; apiUser = data.user; localStorage.setItem('dh_jwt', apiToken); }
+            return data;
+        },
+        logout() { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); },
+        restoreToken() { const t = localStorage.getItem('dh_jwt'); if (t) apiToken = t; return t; },
+        // Inventory
+        getInventory: () => api.request('/inventory'),
+        updateStock: (sku, stock) => api.request(`/inventory/${sku}/stock`, { method: 'PUT', body: JSON.stringify({ stock }) }),
+        updatePrice: (sku, price) => api.request(`/inventory/${sku}/price`, { method: 'PUT', body: JSON.stringify({ price }) }),
+        patchProduct: (sku, fields) => api.request(`/inventory/${sku}`, { method: 'PATCH', body: JSON.stringify(fields) }),
+        addProduct: (data) => api.request('/inventory', { method: 'POST', body: JSON.stringify(data) }),
+        // Clients
+        getClients: () => api.request('/clients'),
+        addClient: (data) => api.request('/clients', { method: 'POST', body: JSON.stringify(data) }),
+        updateClient: (id, data) => api.request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+        addPoints: (id, points) => api.request(`/clients/${id}/points`, { method: 'POST', body: JSON.stringify({ points }) }),
+        // Sales
+        getSales: () => api.request('/sales'),
+        getDashboard: () => api.request('/sales/dashboard'),
+        registerSale: (data) => api.request('/sales', { method: 'POST', body: JSON.stringify(data) }),
+        // Appointments
+        getAppointments: () => api.request('/appointments'),
+        addAppointment: (data) => api.request('/appointments', { method: 'POST', body: JSON.stringify(data) }),
+        updateAppointment: (id, data) => api.request(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+        deleteAppointment: (id) => api.request(`/appointments/${id}`, { method: 'DELETE' }),
+        // Cash
+        getActiveCash: () => api.request('/cash/active'),
+        openCash: (amount) => api.request('/cash/open', { method: 'POST', body: JSON.stringify({ initialAmount: amount }) }),
+        addMovement: (data) => api.request('/cash/movement', { method: 'POST', body: JSON.stringify(data) }),
+        closeCash: () => api.request('/cash/close', { method: 'POST' }),
+        getPayroll: (range) => api.request(`/cash/payroll?range=${range}`),
+        generateCut: (range) => api.request('/cash/payroll/cut', { method: 'POST', body: JSON.stringify({ range }) }),
+    };
     const STORAGE = {
       inventory: 'dh_inventory_a1a',
       sales: 'dh_sales_a1a',
@@ -3202,24 +3261,41 @@
       }
     }
 
+    // Inventario público: usar baseCatalog local para renderizado inmediato
+    // Los datos en vivo se cargan desde la API en el segundo script (panel admin)
     function syncInventory() {
-      const current = loadData(STORAGE.inventory, []);
-      const stockMap = Object.fromEntries(current.map(item => [item.sku, item.stock]));
-      const extras = current.filter(item => !baseCatalog.some(base => base.sku === item.sku));
-      const merged = [
-        ...baseCatalog.map(item => ({ ...item, stock: Number.isFinite(stockMap[item.sku]) ? stockMap[item.sku] : 10, type: 'product' })),
-        ...extras
-      ];
-      saveData(STORAGE.inventory, merged);
-      localStorage.setItem(STORAGE.version, INVENTORY_VERSION);
-      return merged;
+      return baseCatalog.map(item => ({ ...item, stock: 10, type: 'product' }));
     }
 
     let inventory = syncInventory();
-    let sales = loadData(STORAGE.sales, []);
+    let sales = [];
     let cart = [];
     let currentFilter = 'todos';
-    let lastSale = sales[0] || null;
+    let lastSale = null;
+
+    // Cargar inventario real desde la API para mostrar precios/stock actualizados
+    (async () => {
+      try {
+        const resp = await fetch(`${API_BASE}/inventory`, {
+          headers: apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {}
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data) && data.length > 0) {
+            inventory = data.map(p => ({
+              sku: p.sku, name: p.name, category: p.category,
+              categoryLabel: p.category_label || p.category,
+              price: Number(p.price), stock: p.stock,
+              presentation: p.presentation, description: p.description || '',
+              image_url: p.image_url || '', type: 'product'
+            }));
+            renderPublicProducts(currentFilter);
+            renderPosCatalog();
+            renderInventory();
+          }
+        }
+      } catch(e) { /* usar baseCatalog */ }
+    })();
 
     function categoryIcon(category) {
       const icons = {
@@ -3409,7 +3485,6 @@
         const inCart = cart.find(item => item.type === 'product' && item.sku === product.sku);
         return inCart ? { ...product, stock: product.stock - inCart.qty } : product;
       });
-      saveData(STORAGE.inventory, inventory);
       const totals = getTotals();
       const sale = {
         id: Date.now(),
@@ -3422,7 +3497,6 @@
         feeRate: totals.feeRate
       };
       sales.unshift(sale);
-      saveData(STORAGE.sales, sales);
       lastSale = sale;
       cart = [];
       successEl.textContent = 'Venta registrada correctamente.';
@@ -3460,7 +3534,7 @@
       const adminPanel = document.getElementById('adminPanelApp');
       const errorEl = document.getElementById('adminError');
       const refreshAuth = () => {
-        const isAuthed = localStorage.getItem(STORAGE.admin) === 'true';
+        const isAuthed = !!apiToken;
         loginBox.style.display = isAuthed ? 'none' : 'block';
         adminPanel.classList.toggle('active', isAuthed);
       };
@@ -3473,17 +3547,18 @@
         overlay.classList.remove('open');
         overlay.setAttribute('aria-hidden', 'true');
       });
-      document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
-        if (document.getElementById('adminPassword').value === 'DH2025') {
-          localStorage.setItem(STORAGE.admin, 'true');
+      document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+        const pass = document.getElementById('adminPassword').value.trim();
+        const username = pass === 'DH2025' ? 'admin' : pass === 'DH-STAFF' ? 'staff' : null;
+        if (!username) { errorEl.textContent = 'Contraseña incorrecta.'; return; }
+        try {
+          await api.login(username, pass);
           errorEl.textContent = '';
           refreshAuth();
-        } else {
-          errorEl.textContent = 'Contraseña incorrecta.';
-        }
+        } catch(e) { errorEl.textContent = `Error: ${e.message}`; }
       });
       document.getElementById('adminLogoutBtn')?.addEventListener('click', () => {
-        localStorage.removeItem(STORAGE.admin);
+        api.logout();
         refreshAuth();
       });
       document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
@@ -3532,7 +3607,6 @@
       const next = prompt(`Nuevo stock para ${item.name}`, String(item.stock));
       if (next === null) return;
       item.stock = Math.max(0, Number(next) || 0);
-      saveData(STORAGE.inventory, inventory);
       renderPublicProducts(currentFilter);
       renderPosCatalog();
       renderInventory();
@@ -3545,7 +3619,6 @@
       const stock = Number(document.getElementById('newStock').value);
       if (!sku || !name || !price) return;
       inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente desde el panel admin.', stock: Math.max(0, stock || 0), type: 'product' });
-      saveData(STORAGE.inventory, inventory);
       ['newSku','newName','newPrice','newStock'].forEach(id => document.getElementById(id).value = '');
       renderPublicProducts(currentFilter);
       renderPosCatalog();
@@ -3590,7 +3663,7 @@
         cart: [],
         selectedClientId: '',
         lastSale: null,
-        role: localStorage.getItem(SESSION_KEY) || '',
+        role: '',
         currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       };
 
@@ -3618,25 +3691,67 @@
       };
       const serviceClass = name => /elite/i.test(name) ? 'elite' : /plus/i.test(name) ? 'plus' : /esencial/i.test(name) ? 'esencial' : '';
 
-      function loadState() {
-        state.inventory = read(STORAGE.inventory, []);
-        state.sales = read(STORAGE.sales, []);
-        state.clients = read(CLIENTS_KEY, []);
-        state.cashSessions = read(CASH_KEY, []);
-        state.appointments = read(APPOINTMENTS_KEY, []);
-        state.payrollCuts = read(PAYROLL_CUTS_KEY, []);
-        state.payrollCfg = { ...state.payrollCfg, ...read(PAYROLL_CFG_KEY, {}) };
-        state.lastSale = state.sales[0] || null;
+      async function loadState() {
+        // Cargar desde API (PostgreSQL)
+        try {
+          const [inv, cli, sls, appts] = await Promise.all([
+            api.getInventory().catch(() => []),
+            api.getClients().catch(() => []),
+            api.getSales().catch(() => []),
+            api.getAppointments().catch(() => [])
+          ]);
+          // Mapear inventario de la BD al formato del frontend
+          state.inventory = (inv || []).map(p => ({
+            sku: p.sku, name: p.name, category: p.category,
+            categoryLabel: p.category_label || p.categoryLabel || p.category,
+            price: Number(p.price), stock: p.stock, presentation: p.presentation,
+            description: p.description || '', image_url: p.image_url || '',
+            type: 'product'
+          }));
+          // Mapear clientes
+          state.clients = (cli || []).map(c => ({
+            id: c.id, name: c.name, phone: c.phone || '',
+            carType: c.car_type || c.carType || '', notes: c.notes || '',
+            points: c.points || 0
+          }));
+          // Mapear ventas
+          state.sales = (sls || []).map(s => ({
+            id: s.id, timestamp: s.created_at || s.timestamp,
+            items: (s.items || []).map(i => ({ name: i.name, sku: i.sku, price: Number(i.price), qty: i.qty, type: i.sku ? 'product' : 'service', key: i.sku || i.name })),
+            subtotal: Number(s.subtotal), fee: Number(s.fee), total: Number(s.total),
+            paymentMethod: s.payment_method || s.paymentMethod || 'efectivo',
+            feeRate: Number(s.fee_rate || 0),
+            clientId: s.client_id || '', clientName: s.client_name || ''
+          }));
+          // Mapear citas
+          state.appointments = (appts || []).map(a => ({
+            id: a.id, client: a.client, service: a.service,
+            date: a.date, time: a.time, address: a.address || '',
+            notes: a.notes || '', status: a.status || 'pendiente'
+          }));
+          state.lastSale = state.sales[0] || null;
+          // Cargar caja activa
+          try {
+            const cash = await api.getActiveCash();
+            if (cash && cash.id) {
+              state.cashSessions = [{
+                id: cash.id, openedAt: cash.opened_at, initialAmount: Number(cash.initial_amount),
+                incomes: (cash.incomes || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+                expenses: (cash.expenses || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+                closed: false, closedAt: ''
+              }];
+            }
+          } catch(e) { /* sin caja activa */ }
+        } catch (e) {
+          console.warn('[API] Error cargando datos, usando baseCatalog local:', e.message);
+          state.inventory = baseCatalog.map(p => ({ ...p, stock: 10, type: 'product' }));
+        }
       }
 
+      // persistAll: las escrituras ahora van a la API individualmente
+      // Esta función solo re-renderiza la UI (los datos ya están en PostgreSQL)
       function persistAll() {
-        write(STORAGE.inventory, state.inventory);
-        write(STORAGE.sales, state.sales);
-        write(CLIENTS_KEY, state.clients);
-        write(CASH_KEY, state.cashSessions);
-        write(APPOINTMENTS_KEY, state.appointments);
-        write(PAYROLL_CUTS_KEY, state.payrollCuts);
-        write(PAYROLL_CFG_KEY, state.payrollCfg);
+        // No-op: los datos se guardan vía API en cada acción
       }
 
       function getClientVisits(clientId) {
@@ -3898,7 +4013,7 @@
         renderDashboard();
       }
 
-      function registerSaleV2() {
+      async function registerSaleV2() {
         const error = byId('posError'); const success = byId('posSuccess');
         if (error) error.textContent = ''; if (success) success.textContent = '';
         if (!state.cart.length) { if (error) error.textContent = 'Añade al menos un concepto al carrito.'; return; }
@@ -3908,22 +4023,34 @@
             if (!stockItem || stockItem.stock < item.qty) { if (error) error.textContent = `Stock insuficiente para ${item.name}.`; return; }
           }
         }
-        state.inventory = state.inventory.map(product => {
-          const inCart = state.cart.find(item => item.type === 'product' && item.sku === product.sku);
-          return inCart ? { ...product, stock: product.stock - inCart.qty } : product;
-        });
         const totals = currentTotals();
-        const sale = { id: uid('sale'), timestamp: new Date().toISOString(), items: state.cart.map(i => ({ ...i })), subtotal: totals.subtotal, fee: totals.fee, total: totals.total, paymentMethod: totals.method, feeRate: totals.feeRate, clientId: state.selectedClientId || '', clientName: getClient(state.selectedClientId)?.name || '' };
-        state.sales.unshift(sale);
-        state.lastSale = sale;
-        if (sale.clientId) {
-          state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
+        const saleData = {
+          items: state.cart.map(i => ({ sku: i.type === 'product' ? i.sku : null, name: i.name, price: i.price, qty: i.qty })),
+          subtotal: totals.subtotal, fee: totals.fee, total: totals.total,
+          paymentMethod: totals.method, feeRate: totals.feeRate,
+          clientId: state.selectedClientId || null, clientName: getClient(state.selectedClientId)?.name || ''
+        };
+        try {
+          const result = await api.registerSale(saleData);
+          // Actualizar stock local
+          state.inventory = state.inventory.map(product => {
+            const inCart = state.cart.find(item => item.type === 'product' && item.sku === product.sku);
+            return inCart ? { ...product, stock: Math.max(0, product.stock - inCart.qty) } : product;
+          });
+          // Agregar venta al estado local
+          const sale = { id: result.id || result.sale?.id || uid('sale'), timestamp: result.created_at || new Date().toISOString(), items: state.cart.map(i => ({ ...i })), subtotal: totals.subtotal, fee: totals.fee, total: totals.total, paymentMethod: totals.method, feeRate: totals.feeRate, clientId: state.selectedClientId || '', clientName: getClient(state.selectedClientId)?.name || '' };
+          state.sales.unshift(sale);
+          state.lastSale = sale;
+          // Sumar puntos al cliente
+          if (sale.clientId) {
+            state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
+          }
+          state.cart = [];
+          if (success) success.textContent = 'Venta registrada en la base de datos ✅';
+          updateAll();
+        } catch (e) {
+          if (error) error.textContent = `Error al registrar venta: ${e.message}`;
         }
-        const session = activeCash();
-        if (session) session.incomes.push({ id: uid('inc'), detail: `Venta ${sale.id}`, amount: sale.total, timestamp: sale.timestamp, saleId: sale.id });
-        state.cart = [];
-        if (success) success.textContent = 'Venta registrada correctamente.';
-        updateAll();
       }
 
       function sendTicketV2() {
@@ -4012,12 +4139,23 @@
 
         byId('openAdmin').addEventListener('click', () => { byId('adminOverlay').classList.add('open'); syncRoleUI(); });
         byId('closeAdmin').addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
-        byId('adminLoginBtn').addEventListener('click', () => {
+        byId('adminLoginBtn').addEventListener('click', async () => {
           const pass = byId('adminPassword').value.trim();
-          if (pass === 'DH2025') state.role = 'admin'; else if (pass === 'DH-STAFF') state.role = 'staff'; else { byId('adminError').textContent = 'Contraseña incorrecta.'; return; }
-          localStorage.setItem(SESSION_KEY, state.role); byId('adminError').textContent = ''; syncRoleUI();
+          const username = pass === 'DH2025' ? 'admin' : pass === 'DH-STAFF' ? 'staff' : null;
+          if (!username) { byId('adminError').textContent = 'Contraseña incorrecta.'; return; }
+          try {
+            const data = await api.login(username, pass);
+            state.role = data.user?.role || username;
+            byId('adminError').textContent = '';
+            syncRoleUI();
+            // Recargar datos desde la API con el token
+            await loadState();
+            updateAll();
+          } catch (e) {
+            byId('adminError').textContent = `Error: ${e.message}`;
+          }
         });
-        byId('adminLogoutBtn').addEventListener('click', () => { state.role = ''; localStorage.removeItem(SESSION_KEY); syncRoleUI(); });
+        byId('adminLogoutBtn').addEventListener('click', () => { api.logout(); state.role = ''; syncRoleUI(); });
         document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
 
         byId('posCatalog').addEventListener('click', e => {
@@ -4038,47 +4176,72 @@
           renderSelectedClientInfo();
         });
 
-        byId('inventoryBody').addEventListener('click', e => {
-          const sku = e.target.dataset.editStock; if (!sku) return; const item = state.inventory.find(p => p.sku === sku); const next = prompt(`Nuevo stock para ${item.name}`, item.stock); if (next === null) return; item.stock = Math.max(0, Number(next) || 0); updateAll();
+        byId('inventoryBody').addEventListener('click', async e => {
+          const sku = e.target.dataset.editStock; if (!sku) return;
+          const item = state.inventory.find(p => p.sku === sku);
+          const next = prompt(`Nuevo stock para ${item.name}`, item.stock);
+          if (next === null) return;
+          const newStock = Math.max(0, Number(next) || 0);
+          try { await api.updateStock(sku, newStock); item.stock = newStock; updateAll(); }
+          catch(err) { alert('Error al actualizar stock: ' + err.message); }
         });
-        byId('addProductBtn').addEventListener('click', () => {
+        byId('addProductBtn').addEventListener('click', async () => {
           const sku = byId('newSku').value.trim(); const name = byId('newName').value.trim(); const price = Number(byId('newPrice').value); const stock = Number(byId('newStock').value);
           if (!sku || !name || !price) return;
-          state.inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente desde el panel admin.', stock: Math.max(0, stock || 0), type: 'product' });
-          ['newSku','newName','newPrice','newStock'].forEach(id => byId(id).value = ''); updateAll();
+          try {
+            await api.addProduct({ sku, name, category: 'especiales', category_label: 'ESPECIALES', price, stock: Math.max(0, stock || 0), presentation: '—', description: 'Producto añadido manualmente.' });
+            state.inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente.', stock: Math.max(0, stock || 0), type: 'product' });
+            ['newSku','newName','newPrice','newStock'].forEach(id => byId(id).value = ''); updateAll();
+          } catch(e) { alert('Error al agregar producto: ' + e.message); }
         });
 
-        byId('saveClientBtn').addEventListener('click', () => {
+        byId('saveClientBtn').addEventListener('click', async () => {
           const name = byId('clientName').value.trim(); const phone = byId('clientPhone').value.trim(); if (!name || !phone) return;
-          state.clients.unshift({ id: uid('cli'), name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim(), points: 0 });
-          ['clientName','clientPhone','clientNotes'].forEach(id => byId(id).value = ''); byId('clientSuccess').textContent = 'Cliente guardado correctamente.'; updateAll();
+          try {
+            const result = await api.addClient({ name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim() });
+            state.clients.unshift({ id: result.id || uid('cli'), name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim(), points: 0 });
+            ['clientName','clientPhone','clientNotes'].forEach(id => byId(id).value = ''); byId('clientSuccess').textContent = 'Cliente guardado en la base de datos ✅'; updateAll();
+          } catch(e) { byId('clientSuccess').textContent = 'Error: ' + e.message; }
         });
         byId('clientSearch').addEventListener('input', renderClients);
 
-        byId('openCashBtn').addEventListener('click', () => {
+        byId('openCashBtn').addEventListener('click', async () => {
           if (activeCash()) { byId('cashSuccess').textContent = 'Ya hay una caja abierta.'; return; }
-          state.cashSessions.unshift({ id: uid('cash'), openedAt: new Date().toISOString(), initialAmount: Number(byId('cashInitialAmount').value || 0), incomes: [], expenses: [], closed: false, closedAt: '' });
-          byId('cashSuccess').textContent = 'Caja abierta correctamente.'; updateAll();
+          try {
+            const result = await api.openCash(Number(byId('cashInitialAmount').value || 0));
+            state.cashSessions.unshift({ id: result.id || uid('cash'), openedAt: result.opened_at || new Date().toISOString(), initialAmount: Number(result.initial_amount || byId('cashInitialAmount').value || 0), incomes: [], expenses: [], closed: false, closedAt: '' });
+            byId('cashSuccess').textContent = 'Caja abierta en la base de datos ✅'; updateAll();
+          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
         });
-        byId('addExpenseBtn').addEventListener('click', () => {
+        byId('addExpenseBtn').addEventListener('click', async () => {
           const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'Primero abre caja.'; return; }
           const amount = Number(byId('cashExpenseAmount').value || 0); const desc = byId('cashExpenseDesc').value.trim(); if (!amount || !desc) return;
-          session.expenses.push({ id: uid('exp'), detail: `${byId('cashExpenseCategory').value}: ${desc}`, amount, timestamp: new Date().toISOString() });
-          ['cashExpenseDesc','cashExpenseAmount'].forEach(id => byId(id).value = ''); byId('cashSuccess').textContent = 'Gasto registrado.'; updateAll();
+          try {
+            await api.addMovement({ sessionId: session.id, kind: 'gasto', description: `${byId('cashExpenseCategory').value}: ${desc}`, amount });
+            session.expenses.push({ id: uid('exp'), detail: `${byId('cashExpenseCategory').value}: ${desc}`, amount, timestamp: new Date().toISOString() });
+            ['cashExpenseDesc','cashExpenseAmount'].forEach(id => byId(id).value = ''); byId('cashSuccess').textContent = 'Gasto registrado en BD ✅'; updateAll();
+          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
         });
-        byId('closeCashBtn').addEventListener('click', () => {
+        byId('closeCashBtn').addEventListener('click', async () => {
           const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'No hay caja abierta.'; return; }
-          session.closed = true; session.closedAt = new Date().toISOString();
-          const incomes = session.incomes.reduce((a,b)=>a+b.amount,0); const expenses = session.expenses.reduce((a,b)=>a+b.amount,0);
-          byId('cashSuccess').textContent = `Caja cerrada. Ingresos: ${money(incomes)} · Gastos: ${money(expenses)} · Neto: ${money(incomes-expenses)}`; updateAll();
+          try {
+            await api.closeCash();
+            session.closed = true; session.closedAt = new Date().toISOString();
+            const incomes = session.incomes.reduce((a,b)=>a+b.amount,0); const expenses = session.expenses.reduce((a,b)=>a+b.amount,0);
+            byId('cashSuccess').textContent = `Caja cerrada en BD ✅ · Ingresos: ${money(incomes)} · Gastos: ${money(expenses)} · Neto: ${money(incomes-expenses)}`; updateAll();
+          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
         });
 
         ['pctAndres','pctErika','pctLocal'].forEach(id => byId(id).addEventListener('input', () => { state.payrollCfg.Andres = Number(byId('pctAndres').value || 0); state.payrollCfg.Erika = Number(byId('pctErika').value || 0); state.payrollCfg.Local = Number(byId('pctLocal').value || 0); updateAll(); }));
         byId('payrollRange').addEventListener('change', renderPayroll);
-        byId('generateCutBtn').addEventListener('click', () => {
-          const range = byId('payrollRange').value; const base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
-          const shares = Object.entries(state.payrollCfg).map(([name,pct]) => ({ name, pct, amount: base * pct / 100 }));
-          state.payrollCuts.unshift({ id: uid('cut'), timestamp: new Date().toISOString(), range, base, total: shares.reduce((s,x)=>s+x.amount,0), shares }); updateAll();
+        byId('generateCutBtn').addEventListener('click', async () => {
+          const range = byId('payrollRange').value;
+          try {
+            const result = await api.generateCut(range);
+            const base = result.totalSales || getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+            const shares = Object.entries(state.payrollCfg).map(([name,pct]) => ({ name, pct, amount: base * pct / 100 }));
+            state.payrollCuts.unshift({ id: result.id || uid('cut'), timestamp: new Date().toISOString(), range, base, total: shares.reduce((s,x)=>s+x.amount,0), shares }); updateAll();
+          } catch(e) { alert('Error al generar corte: ' + e.message); }
         });
         byId('payrollWhatsappBtn').addEventListener('click', () => {
           const cut = state.payrollCuts[0]; if (!cut) return;
@@ -4086,11 +4249,14 @@
           window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
         });
 
-        byId('saveApptBtn').addEventListener('click', () => {
+        byId('saveApptBtn').addEventListener('click', async () => {
           const client = byId('apptClient').value.trim(); const service = byId('apptService').value; const date = byId('apptDate').value; const time = byId('apptTime').value; const address = byId('apptAddress').value.trim();
           if (!client || !date || !time || !address) return;
-          state.appointments.push({ id: uid('apt'), client, service, date, time, address, notes: byId('apptNotes').value.trim(), status: 'pendiente' });
-          ['apptClient','apptDate','apptTime','apptAddress','apptNotes'].forEach(id => byId(id).value = ''); updateAll();
+          try {
+            const result = await api.addAppointment({ client, service, date, time, address, notes: byId('apptNotes').value.trim() });
+            state.appointments.push({ id: result.id || uid('apt'), client, service, date, time, address, notes: byId('apptNotes').value.trim(), status: 'pendiente' });
+            ['apptClient','apptDate','apptTime','apptAddress','apptNotes'].forEach(id => byId(id).value = ''); updateAll();
+          } catch(e) { alert('Error al guardar cita: ' + e.message); }
         });
         byId('apptWhatsappBtn').addEventListener('click', () => {
           const service = byId('apptService').value; const date = byId('apptDate').value || '[FECHA]'; const time = byId('apptTime').value || '[HORA]'; const address = byId('apptAddress').value || '[DIRECCIÓN]';
@@ -4099,10 +4265,13 @@
         });
         byId('prevMonthBtn').addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1); renderAgenda(); });
         byId('nextMonthBtn').addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1); renderAgenda(); });
-        byId('calendarGrid').addEventListener('click', e => {
+        byId('calendarGrid').addEventListener('click', async e => {
           const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); if (!appt) return;
           const action = prompt(`Cita: ${appt.client} · ${appt.service}\n${appt.date} ${appt.time}\nDirección: ${appt.address}\nEscribe: completar o cancelar`, 'completar');
-          if (!action) return; appt.status = /cancel/i.test(action) ? 'cancelada' : 'completada'; updateAll();
+          if (!action) return;
+          const newStatus = /cancel/i.test(action) ? 'cancelada' : 'completada';
+          try { await api.updateAppointment(id, { status: newStatus }); appt.status = newStatus; updateAll(); }
+          catch(err) { alert('Error al actualizar cita: ' + err.message); }
         });
         byId('todayAppointments').addEventListener('click', e => {
           const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); alert(`${appt.client}\n${appt.service}\n${appt.date} ${appt.time}\n${appt.address}\nEstado: ${appt.status}`);
@@ -4111,8 +4280,17 @@
         byId('exportCsvBtn').addEventListener('click', exportCsv);
       }
 
-      function init() {
-        loadState();
+      async function init() {
+        // Restaurar token JWT si existe
+        const savedToken = api.restoreToken();
+        if (savedToken) {
+          try {
+            const me = await api.request('/auth/me');
+            state.role = me.user?.role || me.role || '';
+          } catch(e) { api.logout(); }
+        }
+        // Cargar datos desde API
+        await loadState();
         bindPublicInteractions();
         bindAdminInteractions();
         syncRoleUI();
