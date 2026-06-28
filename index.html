@@ -609,6 +609,89 @@
         margin-top: 1px;
       }
 
+      /* === TOOLTIPS POPOVER --- descripciones por servicio === */
+      .info-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: 0.45rem;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.16);
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: help;
+        transition: background 0.2s, color 0.2s, transform 0.2s;
+        user-select: none;
+        font-family: 'Inter', sans-serif;
+      }
+      .info-pill:hover, .info-pill:focus-visible {
+        background: rgba(229,90,46,0.25);
+        border-color: #e55a2e;
+        color: #fff;
+        transform: scale(1.08);
+        outline: none;
+      }
+      .list li.has-tip {
+        position: relative;
+      }
+      .list li.has-tip span:not(.check) {
+        cursor: help;
+      }
+      /* Popover */
+      .tip-pop {
+        position: absolute;
+        left: 0;
+        bottom: calc(100% + 10px);
+        width: min(360px, 92vw);
+        padding: 0.85rem 0.95rem;
+        background: #161b22;
+        border: 1px solid rgba(229,90,46,0.4);
+        border-radius: 12px;
+        color: #e5e7eb;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        text-align: left;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: normal;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(4px);
+        transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+        z-index: 50;
+        pointer-events: none;
+      }
+      .tip-pop::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 18px;
+        border: 7px solid transparent;
+        border-top-color: #161b22;
+      }
+      .list li.has-tip:hover .tip-pop,
+      .list li.has-tip:focus-within .tip-pop,
+      .info-pill:hover + .tip-pop,
+      .info-pill:focus-visible + .tip-pop {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      /* En mobile: tap activa el popover */
+      .list li.has-tip.is-open .tip-pop {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      @media (max-width: 640px) {
+        .tip-pop { width: min(280px, 88vw); font-size: 0.78rem; }
+      }
+
       .mini-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -2172,6 +2255,37 @@
           border-radius: 16px;
         }
       }
+
+      /* === SEPARACIÓN EXTERIOR / INTERIOR === */
+      .area-label {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin: 0.85rem 0 0.5rem;
+        padding: 0.45rem 0.7rem;
+        border-radius: 8px;
+        width: fit-content;
+      }
+      .exterior-label {
+        color: #86c5ff;
+        background: linear-gradient(90deg, rgba(56,132,210,0.18), rgba(56,132,210,0.04));
+        border-left: 3px solid #86c5ff;
+      }
+      .interior-label {
+        color: #f5c08a;
+        background: linear-gradient(90deg, rgba(194,116,53,0.22), rgba(194,116,53,0.04));
+        border-left: 3px solid #f5c08a;
+      }
+      .area-emoji { font-size: 1.05rem; line-height: 1; }
+      .area-list { margin-bottom: 0.35rem; }
+      .area-list li { padding-left: 0.2rem; transition: padding 0.15s; }
+      .area-list li.area-exterior:hover { background: rgba(56,132,210,0.06); padding-left: 0.6rem; }
+      .area-list li.area-interior:hover { background: rgba(194,116,53,0.06); padding-left: 0.6rem; }
     </style>
   </head>
   <body>
@@ -2327,20 +2441,24 @@
                 <div class="price-row"><span>Premium / Luxury</span><span>Cotización</span></div>
               </div>
               <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:0.35rem;text-align:right">IVA + comisión terminal incluidos</small>
-              <ul class="list">
-                <li><span class="check">✓</span><span>Descontaminación de pintura</span></li>
-                <li><span class="check">✓</span><span>Protección de cristales</span></li>
-                <li><span class="check">✓</span><span>Lavado de contacto profesional</span></li>
-                <li><span class="check">✓</span><span>Descontaminación mecánica ligera</span></li>
-                <li><span class="check">✓</span><span>Cera en pasta (protección 2 meses)</span></li>
-                <li><span class="check">✓</span><span>Limpieza profunda de rines y llantas</span></li>
-                <li><span class="check">✓</span><span>Lavado de tolvas</span></li>
-                <li><span class="check">✓</span><span>Plásticos exteriores tratados</span></li>
-                <li><span class="check">✓</span><span>Lavado de motor a vapor</span></li>
-                <li><span class="check">✓</span><span>Aspirado profundo interior</span></li>
-                <li><span class="check">✓</span><span>Lavado de textiles</span></li>
-                <li><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
-                <li><span class="check">✓</span><span>Desinfección de ductos de aire</span></li>
+              <p class="area-label exterior-label"><span class="area-emoji">🛡️</span> Exterior</p>
+              <ul class="list area-list">
+                <li class="area-exterior"><span class="check">✓</span><span>Descontaminación de pintura</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Protección de cristales</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de contacto profesional</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Descontaminación mecánica ligera</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Cera en pasta (protección 2 meses)</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Limpieza profunda de rines y llantas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de tolvas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores tratados</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de motor a vapor</span></li>
+              </ul>
+              <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
+              <ul class="list area-list">
+                <li class="area-interior"><span class="check">✓</span><span>Aspirado profundo interior</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Lavado de textiles</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Desinfección de ductos de aire</span></li>
               </ul>
               <a
                 class="btn btn-primary"
@@ -2370,17 +2488,21 @@
                 <div class="price-row"><span>Premium / Luxury</span><span>Cotización</span></div>
               </div>
               <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:0.35rem;text-align:right">IVA + comisión terminal incluidos</small>
-              <ul class="list">
-                <li><span class="check">✓</span><span>Descontaminación de pintura</span></li>
-                <li><span class="check">✓</span><span>Protección de cristales</span></li>
-                <li><span class="check">✓</span><span>Lavado de contacto profesional</span></li>
-                <li><span class="check">✓</span><span>Cera líquida (protección 1 mes)</span></li>
-                <li><span class="check">✓</span><span>Limpieza de rines y llantas</span></li>
-                <li><span class="check">✓</span><span>Lavado de tolvas</span></li>
-                <li><span class="check">✓</span><span>Plásticos exteriores</span></li>
-                <li><span class="check">✓</span><span>Aspirado profundo interior</span></li>
-                <li><span class="check">✓</span><span>Lavado de textiles</span></li>
-                <li><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
+              <p class="area-label exterior-label"><span class="area-emoji">🛡️</span> Exterior</p>
+              <ul class="list area-list">
+                <li class="area-exterior"><span class="check">✓</span><span>Descontaminación de pintura</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Protección de cristales</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de contacto profesional</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Cera líquida (protección 1 mes)</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Limpieza de rines y llantas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de tolvas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores</span></li>
+              </ul>
+              <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
+              <ul class="list area-list">
+                <li class="area-interior"><span class="check">✓</span><span>Aspirado profundo interior</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Lavado de textiles</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
               </ul>
               <a
                 class="btn btn-primary"
@@ -2409,15 +2531,19 @@
                 <div class="price-row"><span>Pick-up / SUV Grande</span><span>$481</span></div>
               </div>
               <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:0.35rem;text-align:right">IVA + comisión terminal incluidos</small>
-              <ul class="list">
-                <li><span class="check">✓</span><span>Lavado de contacto</span></li>
-                <li><span class="check">✓</span><span>Limpieza de rines y llantas</span></li>
-                <li><span class="check">✓</span><span>Lavado de tolvas</span></li>
-                <li><span class="check">✓</span><span>Plásticos exteriores</span></li>
-                <li><span class="check">✓</span><span>Aspirado completo</span></li>
-                <li><span class="check">✓</span><span>Limpieza de cristales interiores</span></li>
-                <li><span class="check">✓</span><span>Limpieza de plásticos interiores</span></li>
-                <li><span class="check">✓</span><span>+ Agrega cera líquida $50 | cera pasta $100</span></li>
+              <p class="area-label exterior-label"><span class="area-emoji">🛡️</span> Exterior</p>
+              <ul class="list area-list">
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de contacto</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Limpieza de rines y llantas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Lavado de tolvas</span></li>
+                <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores</span></li>
+              </ul>
+              <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
+              <ul class="list area-list">
+                <li class="area-interior"><span class="check">✓</span><span>Aspirado completo</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Limpieza de cristales interiores</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>Limpieza de plásticos interiores</span></li>
+                <li class="area-interior"><span class="check">✓</span><span>+ Agrega cera líquida $50 | cera pasta $100</span></li>
               </ul>
               <a
                 class="btn btn-primary"
