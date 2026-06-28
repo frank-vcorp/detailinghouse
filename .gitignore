@@ -1,0 +1,56 @@
+# ============================================================
+# DetailingHouse — .gitignore
+# ============================================================
+
+# ─── Sistema Operativo ───────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── Editores ────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# ─── Node.js (si se agrega build system en el futuro) ────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# ─── Netlify ─────────────────────────────────────────────────
+.netlify/
+
+# ─── Archivos temporales ─────────────────────────────────────
+*.tmp
+*.temp
+*.bak
+*.backup
+*.log
+
+# ─── Variables de entorno (NUNCA subir al repo) ──────────────
+.env
+.env.local
+.env.development
+.env.production
+*.env
+
+# ─── Archivos grandes (subir por otro medio) ─────────────────
+# Videos mayores a 50MB — usar Google Drive o CDN
+# assets/videos/*.mp4   # Descomenta si quieres excluir videos
+
+# ─── Datos sensibles ─────────────────────────────────────────
+# No subir backups con datos de clientes
+*-backup-*.json
+backup-*.json
