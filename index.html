@@ -2286,6 +2286,51 @@
       .area-list li { padding-left: 0.2rem; transition: padding 0.15s; }
       .area-list li.area-exterior:hover { background: rgba(56,132,210,0.06); padding-left: 0.6rem; }
       .area-list li.area-interior:hover { background: rgba(194,116,53,0.06); padding-left: 0.6rem; }
+
+      /* === ACORDEONES DE DESCRIPCIONES === */
+      details.svc-details { margin-top: -0.1rem; margin-bottom: 0.6rem; }
+      details.svc-details > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.4rem 0.55rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        transition: background 0.15s, color 0.15s;
+      }
+      details.svc-details > summary::-webkit-details-marker { display: none; }
+      details.svc-details > summary::before {
+        content: '+'; font-size: 0.9rem; line-height: 1;
+        color: var(--accent, #e55a2e); font-weight: 700;
+      }
+      details.svc-details[open] > summary::before { content: '−'; }
+      details.svc-details > summary:hover {
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+      }
+      details.svc-details > summary > .lbl-ext,
+      details.svc-details > summary > .lbl-int { color: inherit; }
+      details.svc-details > summary > .lbl-ext { color: #86c5ff; }
+      details.svc-details > summary > .lbl-int { color: #f5c08a; }
+      details.svc-details > div.desc-body {
+        margin-top: 0.55rem;
+        padding: 0.6rem 0.8rem;
+        background: rgba(0,0,0,0.22);
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.06);
+      }
+      details.svc-details > div.desc-body p {
+        margin: 0 0 0.55rem 0;
+        color: #e5e7eb;
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+      details.svc-details > div.desc-body p:last-child { margin-bottom: 0; }
+      details.svc-details > div.desc-body strong { color: var(--accent, #e55a2e); }
     </style>
   </head>
   <body>
@@ -2453,6 +2498,7 @@
                 <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores tratados</span></li>
                 <li class="area-exterior"><span class="check">✓</span><span>Lavado de motor a vapor</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-ext">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Descontaminación de pintura</strong> — Remueve suciedad incrustada y contaminantes de la pintura mediante productos específicos (neutro, alcalino o ácido), dejando la superficie lista para un proceso de descontaminación mecánica.</p><p><strong>Protección de cristales</strong> — Eliminación de contaminantes incrustados, residuos minerales y marcas de agua que afectan la transparencia del vidrio. Finaliza con sellador hidrofóbico que mejora la repelencia al agua, aumenta la claridad visual y prolonga la limpieza.</p><p><strong>Lavado de contacto profesional</strong> — Lavado manual con técnicas seguras y productos especializados, guantes de microfibra de alta calidad, limpieza detallada de emblemas, molduras, áreas de difícil acceso y secado cuidadoso para preservar el acabado del vehículo.</p><p><strong>Descontaminación mecánica ligera</strong> — Clay bar o herramientas especializadas para remover contaminantes adheridos (residuos industriales, partículas metálicas, savia y contaminación ambiental). Restaura la suavidad de la pintura y mejora la adherencia y durabilidad de ceras, selladores o cerámicos.</p><p><strong>Cera en pasta (protección 2 meses)</strong> — Aplicación manual de cera en pasta de alta calidad (duración hasta 2 meses). Realza el brillo, intensifica la profundidad del color y crea barrera contra UV, agua y suciedad.</p><p><strong>Limpieza profunda de rines y llantas</strong> — Limpieza profunda y descontaminación de rines y llantas eliminando polvo de frenos, residuos ferrosos, grasa y alquitrán. Incluye abrillantado, acondicionamiento y protector para llantas.</p><p><strong>Lavado de tolvas</strong> — Limpieza detallada del compartimiento del motor con productos especializados, sin comprometer componentes sensibles. Acondicionadores y abrillantadores para acabado limpio y uniforme.</p><p><strong>Plásticos exteriores tratados</strong> — Acondicionadores y protectores sobre molduras, defensas, espejos y rejillas. Previene decoloración, resecamiento y deterioro por exposición al sol y lluvia.</p><p><strong>Lavado de motor a vapor</strong> — Vapor de alta temperatura y baja humedad para remover grasa, aceite superficial y polvo. Minimiza uso de agua, reduce riesgo para componentes sensibles y permite acceder a zonas difíciles. Finaliza con acondicionamiento de plásticos y hules.</p></div></details>
               <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
               <ul class="list area-list">
                 <li class="area-interior"><span class="check">✓</span><span>Aspirado profundo interior</span></li>
@@ -2460,6 +2506,7 @@
                 <li class="area-interior"><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
                 <li class="area-interior"><span class="check">✓</span><span>Desinfección de ductos de aire</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-int">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Aspirado profundo interior</strong> — Aspirado minucioso en alfombras, tapetes, asientos, cajuela, rieles, uniones y áreas de difícil acceso. Logra ambiente más limpio y mejor preparación para etapas posteriores de detallado interior.</p><p><strong>Lavado de textiles</strong> — Limpieza profunda con técnicas especializadas y productos profesionales sobre asientos, cinturones de seguridad, cielo, tapetes y alfombras. Restaura apariencia, frescura e higiene.</p><p><strong>Hidratación de piel/cuero</strong> — Limpia, nutre y acondiciona superficies de piel o vinipiel. Conserva flexibilidad, textura y apariencia original. Protección contra resecamiento, decoloración y rayos UV.</p><p><strong>Desinfección de ductos de aire</strong> — Vapor y sanitizantes profesionales. Elimina bacterias, hongos y olores causados por humedad, tabaco, mascotas o alimentos. Mejora la calidad del aire dentro de la cabina.</p></div></details>
               <a
                 class="btn btn-primary"
                 href="https://wa.me/524461153815?text=Hola%20DetailingHouse,%20me%20interesa%20el%20Paquete%20Elite.%20%C2%BFMe%20pueden%20compartir%20m%C3%A1s%20informaci%C3%B3n%20y%20disponibilidad%3F"
@@ -2498,12 +2545,14 @@
                 <li class="area-exterior"><span class="check">✓</span><span>Lavado de tolvas</span></li>
                 <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-ext">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Descontaminación de pintura</strong> — Remueve suciedad incrustada y contaminantes de la pintura mediante productos específicos (neutro, alcalino o ácido), dejando la superficie lista para un proceso de descontaminación mecánica.</p><p><strong>Protección de cristales</strong> — Eliminación de contaminantes incrustados, residuos minerales y marcas de agua. Finaliza con sellador hidrofóbico que mejora la repelencia, claridad visual y prolonga la limpieza.</p><p><strong>Lavado de contacto profesional</strong> — Lavado manual con técnicas seguras y productos especializados, guantes de microfibra de alta calidad, limpieza detallada de emblemas, molduras, áreas de difícil acceso y secado cuidadoso.</p><p><strong>Cera líquida (protección 1 mes)</strong> — Aplicación manual de cera líquida de alta calidad (duración hasta 1 mes). Realza brillo, intensifica color y crea barrera contra UV, agua y suciedad.</p><p><strong>Limpieza de rines y llantas</strong> — Limpieza profunda y descontaminación eliminando polvo de frenos, residuos ferrosos, grasa y alquitrán. Incluye abrillantado y acondicionamiento para mejor presentación.</p><p><strong>Lavado de tolvas</strong> — Limpieza detallada del compartimiento del motor con productos especializados, sin comprometer componentes sensibles. Acondicionadores y abrillantadores para acabado limpio.</p><p><strong>Plásticos exteriores</strong> — Acondicionadores y protectores sobre molduras, defensas, espejos y rejillas. Previene decoloración, resecamiento y deterioro por exposición al sol y lluvia.</p></div></details>
               <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
               <ul class="list area-list">
                 <li class="area-interior"><span class="check">✓</span><span>Aspirado profundo interior</span></li>
                 <li class="area-interior"><span class="check">✓</span><span>Lavado de textiles</span></li>
                 <li class="area-interior"><span class="check">✓</span><span>Hidratación de piel/cuero</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-int">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Aspirado profundo interior</strong> — Aspirado minucioso en alfombras, tapetes, asientos, cajuela, rieles, uniones y áreas de difícil acceso. Ambiente más limpio y mejor preparación para etapas posteriores.</p><p><strong>Lavado de textiles</strong> — Limpieza profunda con técnicas especializadas y productos profesionales sobre asientos, cinturones, cielo, tapetes y alfombras. Restaura apariencia, frescura e higiene.</p><p><strong>Hidratación de piel/cuero</strong> — Limpia, nutre y acondiciona superficies de piel o vinipiel. Conserva flexibilidad, textura y apariencia original.</p></div></details>
               <a
                 class="btn btn-primary"
                 href="https://wa.me/524461153815?text=Hola%20DetailingHouse,%20me%20interesa%20el%20Paquete%20Plus.%20%C2%BFMe%20pueden%20compartir%20m%C3%A1s%20informaci%C3%B3n%20y%20disponibilidad%3F"
@@ -2538,6 +2587,7 @@
                 <li class="area-exterior"><span class="check">✓</span><span>Lavado de tolvas</span></li>
                 <li class="area-exterior"><span class="check">✓</span><span>Plásticos exteriores</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-ext">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Lavado de contacto</strong> — Lavado manual con técnicas seguras y productos especializados para eliminar suciedad y contaminantes sin dañar la pintura. Se emplean guantes de microfibra de alta calidad.</p><p><strong>Limpieza de rines y llantas</strong> — Limpieza profunda y descontaminación eliminando polvo de frenos, residuos ferrosos, grasa y alquitrán. Incluye abrillantado y acondicionamiento.</p><p><strong>Lavado de tolvas</strong> — Limpieza detallada del compartimiento del motor con productos especializados, sin comprometer componentes sensibles.</p><p><strong>Plásticos exteriores</strong> — Acondicionadores y protectores sobre molduras, defensas, espejos y rejillas. Previene decoloración, resecamiento y deterioro.</p></div></details>
               <p class="area-label interior-label"><span class="area-emoji">🪑</span> Interior</p>
               <ul class="list area-list">
                 <li class="area-interior"><span class="check">✓</span><span>Aspirado completo</span></li>
@@ -2545,6 +2595,7 @@
                 <li class="area-interior"><span class="check">✓</span><span>Limpieza de plásticos interiores</span></li>
                 <li class="area-interior"><span class="check">✓</span><span>+ Agrega cera líquida $50 | cera pasta $100</span></li>
               </ul>
+              <details class="svc-details"><summary><span class="lbl-int">Ver descripción detallada</span></summary><div class="desc-body"><p><strong>Aspirado completo</strong> — Aspirado minucioso en todas las áreas interiores del vehículo: asientos, alfombras, tapetes, cajuela, rieles, compartimentos y zonas de difícil acceso.</p><p><strong>Limpieza de cristales interiores</strong> — Limpieza especializada de superficies acristaladas para eliminar huellas, grasa, residuos de humo y polvo. Restaura la claridad óptica de los cristales.</p><p><strong>Limpieza de plásticos interiores</strong> — Limpieza de tablero, consola central, paneles de puertas y compartimentos. Mejora la apariencia general y contribuye a un ambiente limpio y ordenado.</p><p><strong>+ Agrega cera líquida $50 | cera pasta $100</strong> — Cera líquida o cera pasta como aditivo opcional al paquete esencial para protección adicional de la pintura.</p></div></details>
               <a
                 class="btn btn-primary"
                 href="https://wa.me/524461153815?text=Hola%20DetailingHouse,%20me%20interesa%20el%20Paquete%20Esencial.%20%C2%BFMe%20pueden%20compartir%20m%C3%A1s%20informaci%C3%B3n%20y%20disponibilidad%3F"
