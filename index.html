@@ -3192,12 +3192,7 @@
         getPayroll: (range) => api.request(`/cash/payroll?range=${range}`),
         generateCut: (range) => api.request('/cash/payroll/cut', { method: 'POST', body: JSON.stringify({ range }) }),
     };
-    const STORAGE = {
-      inventory: 'dh_inventory_a1a',
-      sales: 'dh_sales_a1a',
-      admin: 'dh_admin_auth',
-      version: 'dh_inventory_version_a1a'
-    };
+    // STORAGE (claves localStorage) eliminado — todo en PostgreSQL
     const INVENTORY_VERSION = 'A1A_2026_V1';
 
     const baseCatalog = [
@@ -3248,18 +3243,7 @@
       return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
     }
 
-    function saveData(key, value) {
-      localStorage.setItem(key, JSON.stringify(value));
-    }
-
-    function loadData(key, fallback) {
-      try {
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : fallback;
-      } catch (error) {
-        return fallback;
-      }
-    }
+    // saveData/loadData eliminados — datos en PostgreSQL vía API
 
     // Inventario público: usar baseCatalog local para renderizado inmediato
     // Los datos en vivo se cargan desde la API en el segundo script (panel admin)
@@ -3646,12 +3630,7 @@
   </script>
   <script>
     (() => {
-      const SESSION_KEY = 'dh_user_role_v2';
-      const CLIENTS_KEY = 'dh_clients_v2';
-      const CASH_KEY = 'dh_cash_sessions_v2';
-      const APPOINTMENTS_KEY = 'dh_appointments_v2';
-      const PAYROLL_CUTS_KEY = 'dh_payroll_cuts_v2';
-      const PAYROLL_CFG_KEY = 'dh_payroll_cfg_v2';
+      // Claves localStorage eliminadas — sesión JWT en dh_jwt, datos en PostgreSQL
       const state = {
         inventory: [],
         sales: [],
@@ -3668,15 +3647,7 @@
       };
 
       const byId = id => document.getElementById(id);
-      const read = (key, fallback) => {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : fallback;
-        } catch (e) {
-          return fallback;
-        }
-      };
-      const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+      // read/write eliminados — datos en PostgreSQL vía API
       const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
       const todayKey = (date = new Date()) => new Date(date).toISOString().slice(0, 10);
       const uid = prefix => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
