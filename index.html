@@ -2828,6 +2828,28 @@
         .pos-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .pos-cart-drawer { width: 96vw; }
       }
+
+      /* --- Admin Toast --- */
+      #adminToasts { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
+      .admin-toast { background: #1f2937; color: #fff; padding: 0.75rem 1rem; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(-6px); transition: opacity .25s, transform .25s; min-width: 240px; max-width: 360px; font-size: 0.9rem; pointer-events: auto; }
+      .admin-toast.show { opacity: 1; transform: translateY(0); }
+      .admin-toast-error { background: #b91c1c; }
+      .admin-toast-success { background: #15803d; }
+      .admin-toast-info { background: #1f2937; border: 1px solid #374151; }
+
+      /* --- Admin Modal --- */
+      .admin-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 9998; }
+      .admin-modal { background: #111827; color: #fff; padding: 1.25rem 1.5rem; border-radius: 12px; min-width: 320px; max-width: 480px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+      .admin-modal h3 { margin: 0 0 0.75rem; font-size: 1.05rem; font-weight: 700; }
+      .admin-modal-body { margin-bottom: 1rem; }
+      .admin-modal-body p { margin: 0.25rem 0; font-size: 0.9rem; color: #cbd5e1; }
+      .admin-modal-body label { display: block; margin-top: 0.5rem; font-size: 0.85rem; color: #94a3b8; }
+      .admin-modal-body input, .admin-modal-body select { width: 100%; padding: 0.4rem 0.5rem; margin-top: 0.25rem; background: #0b1220; color: #fff; border: 1px solid #334155; border-radius: 6px; font-size: 0.9rem; }
+      .admin-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+      .admin-modal-actions button { padding: 0.4rem 0.9rem; border-radius: 6px; border: 0; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+      .admin-modal-actions .btn-secondary { background: #334155; color: #fff; }
+      .admin-modal-actions .btn-primary { background: #dc2626; color: #fff; }
+      .admin-modal-actions .btn-primary:hover { background: #b91c1c; }
     </style>
   </head>
   <body>
@@ -4442,7 +4464,7 @@
       };
       sales.unshift(sale);
       lastSale = sale;
-      cart = [];
+      cart.length = 0;
       successEl.textContent = 'Venta registrada correctamente.';
       renderPublicProducts(currentFilter);
       renderPosCatalog();
@@ -4540,19 +4562,14 @@
     });
 
     document.getElementById('cartItems')?.addEventListener('click', event => {
-      const removeIndex = event.target.dataset.removeIndex;
-      if (removeIndex === undefined) return;
-      cart.splice(Number(removeIndex), 1);
-      renderCart();
+      event.preventDefault();
     });
 
     document.getElementById('inventoryBody')?.addEventListener('click', event => {
       const sku = event.target.dataset.editStock;
       if (!sku) return;
-      const item = inventory.find(product => product.sku === sku);
-      const next = prompt(`Nuevo stock para ${item.name}`, String(item.stock));
-      if (next === null) return;
-      item.stock = Math.max(0, Number(next) || 0);
+      // Legacy v1 silenciado — el handler admin IIFE toma el control con modal visual.
+      return;
       renderPublicProducts(currentFilter);
       renderPosCatalog();
       renderInventory();
@@ -4620,7 +4637,6 @@
         appointments: [],
         payrollCuts: [],
         payrollCfg: { Andres: 35, Erika: 35, Local: 30 },
-        cart: [],
         selectedClientId: '',
         lastSale: null,
         role: '',
@@ -4638,6 +4654,37 @@
       const uid = prefix => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
       const isToday = ts => todayKey(ts) === todayKey();
       const getClient = id => state.clients.find(c => c.id === id);
+      // === Helpers UI admin: toast + modal ===
+      window.dhAdminToast = function(msg, type) {
+        const box = document.getElementById('adminToasts');
+        if (!box) return;
+        const el = document.createElement('div');
+        el.className = 'admin-toast admin-toast-' + (type || 'info');
+        el.textContent = msg;
+        box.appendChild(el);
+        setTimeout(() => el.classList.add('show'), 10);
+        setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+      };
+      window.dhAdminModal = function(opts) {
+        const root = document.getElementById('adminModals');
+        if (!root) return Promise.resolve(null);
+        const overlay = document.createElement('div');
+        overlay.className = 'admin-modal-overlay';
+        overlay.innerHTML = '<div class="admin-modal"><h3></h3><div class="admin-modal-body"></div><div class="admin-modal-actions"><button class="btn-secondary" data-modal-cancel>Cancelar</button><button class="btn-primary" data-modal-ok>Aceptar</button></div></div>';
+        overlay.querySelector('h3').textContent = opts.title || '';
+        overlay.querySelector('.admin-modal-body').innerHTML = opts.body || '';
+        if (opts.okText) overlay.querySelector('[data-modal-ok]').textContent = opts.okText;
+        root.appendChild(overlay);
+        const input = overlay.querySelector('input[data-modal-input], select[data-modal-input]');
+        if (input) setTimeout(() => input.focus(), 50);
+        return new Promise(resolve => {
+          overlay.addEventListener('click', e => {
+            if (e.target === overlay || e.target.hasAttribute('data-modal-cancel')) { overlay.remove(); resolve(null); }
+            if (e.target.hasAttribute('data-modal-ok')) { const v = input ? input.value : true; overlay.remove(); resolve(v); }
+          });
+        });
+      };
+
       const cloneEl = id => {
         const el = byId(id);
         if (!el) return null;
@@ -4801,7 +4848,7 @@
 
       function currentTotals() {
         // Precios ya llevan terminal 3.6% + IVA 16% aplicados vía fp()
-        const subtotal = state.cart.reduce((sum, item) => sum + item.qty * item.price, 0);
+        const subtotal = cart.reduce((sum, item) => sum + item.qty * item.price, 0);
         const method = byId('paymentMethod')?.value || 'Efectivo';
         return { subtotal, fee: 0, total: subtotal, method, feeRate: 0 };
       }
@@ -4809,7 +4856,7 @@
       function renderCart() {
         const list = byId('cartItems');
         const totals = currentTotals();
-        if (list) list.innerHTML = state.cart.length ? state.cart.map((item, i) => `<div class="cart-item"><div class="cart-row"><strong>${item.name}</strong><span>${money(item.qty * item.price)}</span></div><div class="cart-row muted"><span>${item.type === 'product' ? item.sku : 'Servicio'} · ${item.qty} ud.</span><span>${money(item.price)} c/u</span></div><div class="cart-actions"><button class="btn-small" type="button" data-remove-index="${i}">Eliminar</button></div></div>`).join('') : '<div class="empty-state">Añade servicios o productos para registrar la venta.</div>';
+        if (list) list.innerHTML = cart.length ? cart.map((item, i) => `<div class="cart-item"><div class="cart-row"><strong>${item.name}</strong><span>${money(item.qty * item.price)}</span></div><div class="cart-row muted"><span>${item.type === 'product' ? item.sku : 'Servicio'} · ${item.qty} ud.</span><span>${money(item.price)} c/u</span></div><div class="cart-actions"><button class="btn-small" type="button" data-remove-index="${i}">Eliminar</button></div></div>`).join('') : '<div class="empty-state">Añade servicios o productos para registrar la venta.</div>';
         if (byId('cartSubtotal')) byId('cartSubtotal').textContent = money(totals.subtotal);
         if (byId('cartFee')) byId('cartFee').textContent = money(totals.fee);
         if (byId('cartGrand')) byId('cartGrand').textContent = money(totals.total);
@@ -4817,8 +4864,8 @@
 
       function addToCart(item, qty) {
         const quantity = Math.max(1, Number(qty) || 1);
-        const existing = state.cart.find(entry => entry.key === item.key);
-        if (existing) existing.qty += quantity; else state.cart.push({ ...item, qty: quantity });
+        const existing = cart.find(entry => entry.key === item.key);
+        if (existing) existing.qty += quantity; else cart.push({ ...item, qty: quantity });
         renderCart();
       }
 
@@ -4987,8 +5034,8 @@
       async function registerSaleV2() {
         const error = byId('posError'); const success = byId('posSuccess');
         if (error) error.textContent = ''; if (success) success.textContent = '';
-        if (!state.cart.length) { if (error) error.textContent = 'Añade al menos un concepto al carrito.'; return; }
-        for (const item of state.cart) {
+        if (!cart.length) { if (error) error.textContent = 'Añade al menos un concepto al carrito.'; return; }
+        for (const item of cart) {
           if (item.type === 'product') {
             const stockItem = state.inventory.find(p => p.sku === item.sku);
             if (!stockItem || stockItem.stock < item.qty) { if (error) error.textContent = `Stock insuficiente para ${item.name}.`; return; }
@@ -4996,7 +5043,7 @@
         }
         const totals = currentTotals();
         const saleData = {
-          items: state.cart.map(i => ({ sku: i.type === 'product' ? i.sku : null, name: i.name, price: i.price, qty: i.qty })),
+          items: cart.map(i => ({ sku: i.type === 'product' ? i.sku : null, name: i.name, price: i.price, qty: i.qty })),
           subtotal: totals.subtotal, fee: totals.fee, total: totals.total,
           paymentMethod: totals.method, feeRate: totals.feeRate,
           clientId: state.selectedClientId || null, clientName: getClient(state.selectedClientId)?.name || ''
@@ -5005,18 +5052,18 @@
           const result = await api.registerSale(saleData);
           // Actualizar stock local
           state.inventory = state.inventory.map(product => {
-            const inCart = state.cart.find(item => item.type === 'product' && item.sku === product.sku);
+            const inCart = cart.find(item => item.type === 'product' && item.sku === product.sku);
             return inCart ? { ...product, stock: Math.max(0, product.stock - inCart.qty) } : product;
           });
           // Agregar venta al estado local
-          const sale = { id: result.id || result.sale?.id || uid('sale'), timestamp: result.created_at || new Date().toISOString(), items: state.cart.map(i => ({ ...i })), subtotal: totals.subtotal, fee: totals.fee, total: totals.total, paymentMethod: totals.method, feeRate: totals.feeRate, clientId: state.selectedClientId || '', clientName: getClient(state.selectedClientId)?.name || '' };
+          const sale = { id: result.id || result.sale?.id || uid('sale'), timestamp: result.created_at || new Date().toISOString(), items: cart.map(i => ({ ...i })), subtotal: totals.subtotal, fee: totals.fee, total: totals.total, paymentMethod: totals.method, feeRate: totals.feeRate, clientId: state.selectedClientId || '', clientName: getClient(state.selectedClientId)?.name || '' };
           state.sales.unshift(sale);
           state.lastSale = sale;
           // Sumar puntos al cliente
           if (sale.clientId) {
             state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
           }
-          state.cart = [];
+          cart = [];
           if (success) success.textContent = 'Venta registrada en la base de datos ✅';
           updateAll();
         } catch (e) {
@@ -5025,7 +5072,7 @@
       }
 
       function sendTicketV2() {
-        const sale = state.cart.length ? { items: state.cart, paymentMethod: byId('paymentMethod').value, total: currentTotals().total } : state.lastSale;
+        const sale = cart.length ? { items: cart, paymentMethod: byId('paymentMethod').value, total: currentTotals().total } : state.lastSale;
         if (!sale) { if (byId('posError')) byId('posError').textContent = 'No hay ticket disponible.'; return; }
         const lines = sale.items.map(item => `• ${item.name} x${item.qty} — ${money(item.qty * item.price)}`);
         const text = ['Hola DetailingHouse!', 'Comparto el resumen del ticket:', ...lines, `Método de pago: ${sale.paymentMethod}`, `Total: ${money(sale.total)}`].join('\n');
@@ -5135,7 +5182,7 @@
           if (sku) { const product = state.inventory.find(item => item.sku === sku); addToCart({ key: sku, sku: sku, name: product.name, price: fp(product.price), type: 'product' }, document.querySelector(`[data-qty="${sku}"]`)?.value); }
         });
         byId('cartItems').addEventListener('click', e => {
-          const index = e.target.dataset.removeIndex; if (index === undefined) return; state.cart.splice(Number(index), 1); renderCart();
+          const index = e.target.dataset.removeIndex; if (index === undefined) return; cart.splice(Number(index), 1); renderCart();
         });
         byId('registerSaleBtn').addEventListener('click', registerSaleV2);
         byId('ticketWhatsappBtn').addEventListener('click', sendTicketV2);
@@ -5150,11 +5197,15 @@
         byId('inventoryBody').addEventListener('click', async e => {
           const sku = e.target.dataset.editStock; if (!sku) return;
           const item = state.inventory.find(p => p.sku === sku);
-          const next = prompt(`Nuevo stock para ${item.name}`, item.stock);
+          const next = await window.dhAdminModal({
+            title: 'Editar stock',
+            body: `<p><b>${item.name}</b> (${item.sku || ''})</p><p>Stock actual: ${item.stock}</p><label>Nuevo stock: <input type="number" min="0" step="1" value="${item.stock}" data-modal-input /></label>`,
+            okText: 'Guardar'
+          });
           if (next === null) return;
           const newStock = Math.max(0, Number(next) || 0);
           try { await api.updateStock(sku, newStock); item.stock = newStock; updateAll(); }
-          catch(err) { alert('Error al actualizar stock: ' + err.message); }
+          catch (err) { window.dhAdminToast('Error al actualizar stock: ' + err.message, 'error'); }
         });
         byId('addProductBtn').addEventListener('click', async () => {
           const sku = byId('newSku').value.trim(); const name = byId('newName').value.trim(); const price = Number(byId('newPrice').value); const stock = Number(byId('newStock').value);
@@ -5163,7 +5214,7 @@
             await api.addProduct({ sku, name, category: 'especiales', category_label: 'ESPECIALES', price, stock: Math.max(0, stock || 0), presentation: '—', description: 'Producto añadido manualmente.' });
             state.inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente.', stock: Math.max(0, stock || 0), type: 'product' });
             ['newSku','newName','newPrice','newStock'].forEach(id => byId(id).value = ''); updateAll();
-          } catch(e) { alert('Error al agregar producto: ' + e.message); }
+          } catch (e) { window.dhAdminToast('Error al agregar producto: ' + e.message, 'error'); }
         });
 
         byId('saveClientBtn').addEventListener('click', async () => {
@@ -5212,7 +5263,7 @@
             const base = result.totalSales || getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
             const shares = Object.entries(state.payrollCfg).map(([name,pct]) => ({ name, pct, amount: base * pct / 100 }));
             state.payrollCuts.unshift({ id: result.id || uid('cut'), timestamp: new Date().toISOString(), range, base, total: shares.reduce((s,x)=>s+x.amount,0), shares }); updateAll();
-          } catch(e) { alert('Error al generar corte: ' + e.message); }
+          } catch (e) { window.dhAdminToast('Error al generar corte: ' + e.message, 'error'); }
         });
         byId('payrollWhatsappBtn').addEventListener('click', () => {
           const cut = state.payrollCuts[0]; if (!cut) return;
@@ -5227,7 +5278,7 @@
             const result = await api.addAppointment({ client, service, date, time, address, notes: byId('apptNotes').value.trim() });
             state.appointments.push({ id: result.id || uid('apt'), client, service, date, time, address, notes: byId('apptNotes').value.trim(), status: 'pendiente' });
             ['apptClient','apptDate','apptTime','apptAddress','apptNotes'].forEach(id => byId(id).value = ''); updateAll();
-          } catch(e) { alert('Error al guardar cita: ' + e.message); }
+          } catch (e) { window.dhAdminToast('Error al guardar cita: ' + e.message, 'error'); }
         });
         byId('apptWhatsappBtn').addEventListener('click', () => {
           const service = byId('apptService').value; const date = byId('apptDate').value || '[FECHA]'; const time = byId('apptTime').value || '[HORA]'; const address = byId('apptAddress').value || '[DIRECCIÓN]';
@@ -5238,14 +5289,18 @@
         byId('nextMonthBtn').addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1); renderAgenda(); });
         byId('calendarGrid').addEventListener('click', async e => {
           const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); if (!appt) return;
-          const action = prompt(`Cita: ${appt.client} · ${appt.service}\n${appt.date} ${appt.time}\nDirección: ${appt.address}\nEscribe: completar o cancelar`, 'completar');
+          const action = await window.dhAdminModal({
+            title: 'Actualizar cita',
+            body: `<p><b>${appt.client}</b> · ${appt.service}</p><p>${appt.date} ${appt.time}</p><p>${appt.address}</p><label>Acción: <select data-modal-input><option value="completar">Completar</option><option value="cancelar">Cancelar</option></select></label>`,
+            okText: 'Guardar'
+          });
           if (!action) return;
-          const newStatus = /cancel/i.test(action) ? 'cancelada' : 'completada';
+          const newStatus = action === 'cancelar' ? 'cancelada' : 'completada';
           try { await api.updateAppointment(id, { status: newStatus }); appt.status = newStatus; updateAll(); }
-          catch(err) { alert('Error al actualizar cita: ' + err.message); }
+          catch (err) { window.dhAdminToast('Error al actualizar cita: ' + err.message, 'error'); }
         });
         byId('todayAppointments').addEventListener('click', e => {
-          const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); alert(`${appt.client}\n${appt.service}\n${appt.date} ${appt.time}\n${appt.address}\nEstado: ${appt.status}`);
+          const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); window.dhAdminToast(`${appt.client} · ${appt.service} · ${appt.date} ${appt.time} · ${appt.status}`, 'info');
         });
 
         byId('exportCsvBtn').addEventListener('click', exportCsv);
@@ -5272,5 +5327,7 @@
       init();
     })();
   </script>
+  <div id="adminToasts"></div>
+  <div id="adminModals"></div>
   </body>
 </html>
