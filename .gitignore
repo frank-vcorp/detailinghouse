@@ -32,6 +32,13 @@ yarn-error.log*
 # ─── Netlify ─────────────────────────────────────────────────
 .netlify/
 
+# ─── Vercel ──────────────────────────────────────────────────
+.vercel/
+
+# ─── Scripts temporales de migración ─────────────────────────
+apply_*.py
+update_docs.py
+
 # ─── Archivos temporales ─────────────────────────────────────
 *.tmp
 *.temp
