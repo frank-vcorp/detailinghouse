@@ -7,6 +7,35 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [4.0.0] — 2026-07-07
+
+### ✅ Añadido
+- **Backend PostgreSQL** en Railway (API REST completa)
+- **Autenticación JWT** con endpoints `/auth/login`, token persistente en `localStorage('dh_jwt')`
+- **10 endpoints API**: inventario, clientes, ventas, citas, stock, productos, cortes de nómina
+- **Carrito fuente única de verdad (SOT)**: eliminado `state.cart` duplicado, ahora usa `cart` por closure en ambos scopes (público + admin)
+- **Modales visuales** (`dhAdminModal`): edición de stock y actualización de citas reemplazan `prompt()`
+- **Toasts de feedback** (`dhAdminToast`): 6 alertas de error + 1 info de detalle de cita reemplazan `alert()`
+- **CSS visual**: `.admin-toast`, `.admin-modal-overlay`, `.admin-modal` con estilos dark premium
+- **Contenedores DOM**: `#adminToasts` + `#adminModals` para feedback visual no bloqueante
+- **Mutación in-place** del carrito tras venta (`cart.length = 0` preserva referencia)
+
+### 🔧 Modificado
+- `api.getInventory()`, `api.getClients()`, `api.getSales()`, `api.getAppointments()` sustituyen lectura de `localStorage`
+- `api.updateStock()`, `api.addProduct()`, `api.addClient()`, `api.addAppointment()` sustituyen escritura en `localStorage`
+- `api.login(username, password)` envía POST a `/auth/login` y almacena JWT
+- `api.restoreToken()` restaura sesión desde `localStorage('dh_jwt')` al cargar la página
+- Listener legacy `cartItems` silenciado (handler muerto, carrito flotante toma control)
+- `registerSale` envía venta a API y actualiza stock local tras confirmación del servidor
+
+### 🗑️ Eliminado
+- `localStorage` para productos, ventas, clientes, citas y nómina (solo queda `dh_jwt` para JWT)
+- `state.cart` del objeto `state` (unificado a `cart` por closure)
+- 9 calls nativas `prompt()` / `alert()` del panel admin
+- Arquitectura offline-first sin backend (migrada a API PostgreSQL)
+
+---
+
 ## [3.0.0] — 2026-06-28
 
 ### ✅ Añadido

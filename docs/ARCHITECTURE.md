@@ -1,74 +1,102 @@
 # 🏗️ Arquitectura — DetailingHouse
 
-## Decisión de Arquitectura: SPA con localStorage
+## Decisión de Arquitectura: SPA + API REST con PostgreSQL (v4.0)
 
 ### Contexto
-DetailingHouse es un negocio pequeño (2-3 personas) que necesita:
-- Una página pública para atraer clientes
-- Un sistema de gestión interno (POS, inventario, caja, nómina)
-- Presupuesto limitado para infraestructura
-- Funcionamiento offline (el equipo trabaja a domicilio)
+DetailingHouse creció de 2-3 personas a un equipo que necesita:
+- Sincronización de datos entre múltiples dispositivos
+- Persistencia centralizada (no atada a un solo navegador)
+- Autenticación segura con roles diferenciados
+- API REST escalable con base de datos relacional
 
-### Decisión: Aplicación de una sola página (SPA) sin backend
+### Decisión: SPA (frontend) + API REST en Railway + PostgreSQL (backend)
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  NAVEGADOR DEL USUARIO               │
-│                                                      │
-│  ┌─────────────────────────────────────────────┐    │
-│  │              index.html (SPA)               │    │
-│  │                                             │    │
-│  │  ┌──────────────┐  ┌─────────────────────┐ │    │
-│  │  │ Página       │  │  Panel Admin        │ │    │
-│  │  │ Pública      │  │                     │ │    │
-│  │  │              │  │  POS │ Inventario   │ │    │
-│  │  │  Servicios   │  │  Caja│ Clientes     │ │    │
-│  │  │  Productos   │  │  Nom.│ Agenda       │ │    │
-│  │  │  Galería     │  │  Dashboard          │ │    │
-│  │  │  SEO         │  │                     │ │    │
-│  │  └──────────────┘  └─────────────────────┘ │    │
-│  │                                             │    │
-│  │  ┌─────────────────────────────────────┐   │    │
-│  │  │        localStorage (DB local)       │   │    │
-│  │  │  dh_products │ dh_sales             │   │    │
-│  │  │  dh_customers│ dh_cashbox           │   │    │
-│  │  │  dh_appoints │ dh_payroll           │   │    │
-│  │  └─────────────────────────────────────┘   │    │
-│  └─────────────────────────────────────────────┘    │
-│                                                      │
-└─────────────────────────────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │   Netlify   │
-                    │   (CDN)     │
-                    │   HTTPS ✅  │
-                    └─────────────┘
+┌───────────────────────────────────────────────────────┐
+│                    NAVEGADOR DEL USUARIO                │
+│                                                         │
+│  ┌───────────────────────────────────────────────┐     │
+│  │                index.html (SPA)                │     │
+│  │                                                │     │
+│  │  ┌──────────────┐  ┌─────────────────────┐    │     │
+│  │  │ Página       │  │  Panel Admin        │    │     │
+│  │  │ Pública      │  │                     │    │     │
+│  │  │  Servicios   │  │  POS │ Inventario   │    │     │
+│  │  │  Productos   │  │  Caja│ Clientes     │    │     │
+│  │  │  Galería     │  │  Nom.│ Agenda       │    │     │
+│  │  │  SEO         │  │  Dashboard          │    │     │
+│  │  └──────────────┘  └─────────────────────┘    │     │
+│  │                                                │     │
+│  │  ┌─────────────────────────────────────┐      │     │
+│  │  │  localStorage (solo JWT: 'dh_jwt')   │      │     │
+│  │  └─────────────────────────────────────┘      │     │
+│  │                                                │     │
+│  │  ┌─────────────────────────────────────┐      │     │
+│  │  │  Fetch API → API REST (HTTPS)        │      │     │
+│  │  │  Authorization: Bearer <jwt>         │      │     │
+│  │  └─────────────────────────────────────┘      │     │
+│  └───────────────────────────────────────────────┘     │
+│                         │                               │
+└─────────────────────────┼───────────────────────────────┘
+                          │ HTTPS
+                   ┌──────▼──────┐
+                   │   Netlify    │
+                   │   (CDN)      │
+                   │   HTTPS ✅   │
+                   └──────┬──────┘
+                          │
+                   ┌──────▼──────────────────┐
+                   │  API REST (Railway)      │
+                   │  https://detailinghouse-  │
+                   │  api-production.up.       │
+                   │  railway.app/api          │
+                   │                           │
+                   │  /auth/login     (JWT)    │
+                   │  /inventory      (GET/PUT)│
+                   │  /clients        (GET/POST)│
+                   │  /sales          (GET/POST)│
+                   │  /appointments   (GET/POST)│
+                   └──────┬──────────────────┘
+                          │
+                   ┌──────▼──────┐
+                   │  PostgreSQL  │
+                   │  (Railway)   │
+                   │              │
+                   │  products    │
+                   │  clients     │
+                   │  sales       │
+                   │  appointments│
+                   │  cash_sessions│
+                   │  payroll_cuts│
+                   │  users       │
+                   └──────────────┘
 ```
 
 ### Ventajas de esta arquitectura
 
 | Aspecto | Beneficio |
 |---------|-----------|
-| **Costo** | $0 MXN/mes (Netlify gratis) |
-| **Velocidad** | Sin latencia de servidor |
-| **Offline** | Funciona sin internet |
-| **Mantenimiento** | Un solo archivo HTML |
-| **Despliegue** | 2 minutos con Netlify Drop |
-| **Respaldo** | Código en GitHub, datos exportables |
+| **Costo** | ~$5 USD/mes (Railway) + $0 Netlify |
+| **Sincronización** | Datos centralizados, multi-dispositivo |
+| **Seguridad** | JWT + roles (admin/staff) |
+| **Persistencia** | PostgreSQL relacional con backups automáticos |
+| **Mantenimiento** | Frontend SPA + API REST separados |
+| **Despliegue** | Auto-deploy desde GitHub |
+| **Respaldo** | DB en la nube + código en GitHub |
 
 ### Limitaciones y plan de migración
 
-| Limitación | Solución futura (v4.0) |
-|-----------|----------------------|
-| Datos solo en un dispositivo | Supabase (DB en la nube) |
-| Sin sincronización multi-equipo | API REST + autenticación JWT |
-| Contraseñas en código fuente | Autenticación segura |
-| Sin Google Calendar real | API de Google Calendar |
-| Sin pagos online | SDK de Mercado Pago |
+| Limitación anterior (v3.0) | Solución aplicada (v4.0) |
+|---------------------------|--------------------------|
+| Datos solo en un dispositivo | ✅ PostgreSQL en Railway |
+| Sin sincronización multi-equipo | ✅ API REST + JWT |
+| Contraseñas en código fuente | ✅ Auth backend con JWT |
+| Sin Google Calendar real | Pendiente v5.0 |
+| Sin pagos online | Pendiente v5.0 |
 
 ---
 
-## Stack Técnico Actual (v3.0)
+## Stack Técnico Actual (v4.0)
 
 ```
 HTML5 Semántico
@@ -83,14 +111,34 @@ CSS3
 ├── CSS Grid y Flexbox
 ├── Animaciones y transiciones
 ├── Diseño mobile-first (responsivo)
-└── Dark mode nativo
+├── Dark mode nativo
+├── .admin-toast / .admin-modal (feedback visual v4.0)
+└── Transiciones de entrada/salida para toasts/modals
 
 JavaScript Vanilla ES6+
-├── localStorage API
-├── Canvas API (gráficas)
-├── Fetch API (WhatsApp links)
+├── Fetch API → API REST Railway (POST/GET/PUT)
+├── Authorization: Bearer <jwt> en headers
+├── localStorage (solo JWT: 'dh_jwt')
+├── Canvas API (gráficas del dashboard)
+├── dhAdminModal() / dhAdminToast() (UI visual v4.0)
+├── Carrito SOT por closure (sin duplicación)
 ├── módulo de QR (QRCode.js inline)
 └── Sin dependencias externas de CDN
+
+Backend (v4.0 — Railway)
+├── Node.js + Express
+├── PostgreSQL (Railway DB)
+├── JWT Authentication (/auth/login)
+├── Endpoints REST:
+│   ├── /auth/login        (POST)
+│   ├── /inventory         (GET)
+│   ├── /inventory/:sku/stock (PUT)
+│   ├── /inventory/:sku/price (PUT)
+│   ├── /clients           (GET, POST)
+│   ├── /sales             (GET, POST)
+│   ├── /appointments      (GET, POST)
+│   └── /payroll/cuts      (POST)
+└── CORS habilitado para Netlify
 ```
 
 ---
@@ -103,11 +151,12 @@ JavaScript Vanilla ES6+
 - Los socios pueden editar el HTML directamente sin conocer React
 - Migración posible cuando se requiera el backend (v4.0)
 
-### Por qué localStorage y NO una base de datos
-- El equipo trabaja con 1-2 dispositivos max
-- No hay necesidad de acceso simultáneo de múltiples usuarios
-- Los datos se pueden exportar a CSV/JSON manualmente
-- Supabase está listo para cuando escale el negocio
+### Por qué PostgreSQL y NO localStorage (cambio v4.0)
+- El negocio creció: necesita acceso desde múltiples dispositivos
+- Sincronización en tiempo real entre socios y empleados
+- Los datos viven en la nube: backups automáticos de Railway
+- Escalable: listo para agregar pagos online y app móvil (v5.0)
+- localStorage se mantiene solo para el JWT (persistencia de sesión)
 
 ### Por qué Netlify y NO hosting compartido
 - Deploy automático desde GitHub con 0 configuración

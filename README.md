@@ -17,10 +17,12 @@
 ### *"El Arte del Cuidado"*
 
 [![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen?style=for-the-badge)](https://github.com)
-[![Versión](https://img.shields.io/badge/Versión-3.0.0-blue?style=for-the-badge)](CHANGELOG.md)
+[![Versión](https://img.shields.io/badge/Versión-4.0.0-blue?style=for-the-badge)](docs/CHANGELOG.md)
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/es/docs/Web/HTML)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/es/docs/Web/JavaScript)
 [![Netlify](https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://netlify.com)
+[![Railway](https://img.shields.io/badge/Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 
 **Detallado automotriz profesional a domicilio**
 📍 Querétaro y Corregidora, México &nbsp;|&nbsp; 📱 [4461153815](https://wa.me/524461153815)
@@ -53,15 +55,16 @@
 
 ## 🎯 Descripción del Proyecto
 
-**DetailingHouse** es una plataforma web integral de **una sola página (SPA)** que combina:
+**DetailingHouse** es una plataforma web integral de **una sola página (SPA)** con **backend API REST + PostgreSQL** que combina:
 
 - ✅ **Página pública** orientada a clientes, con SEO local optimizado para Querétaro
 - ✅ **Sistema de gestión interno** con 7 módulos de administración completos
-- ✅ **Persistencia de datos** mediante `localStorage` (sin servidor externo requerido)
+- ✅ **Backend PostgreSQL** en Railway con API REST y autenticación JWT
+- ✅ **Sincronización multi-dispositivo**: datos centralizados en la nube
 - ✅ **PWA-ready**: instalable en dispositivos móviles
 - ✅ **Catálogo A1A**: 30 productos de detailing organizados en 7 categorías
 
-> 💡 **Arquitectura offline-first**: funciona completamente sin conexión a internet después de la primera carga.
+> 💡 **Arquitectura v4.0**: frontend SPA en Netlify + API REST en Railway + PostgreSQL. `localStorage` solo persiste el JWT de sesión.
 
 ---
 
@@ -146,7 +149,7 @@ detailinghouse/
 │
 ├── 📁 scripts/                      ← Scripts de utilidad
 │   ├── deploy.sh                    ← Deploy automatizado a Netlify
-│   └── backup-data.sh               ← Backup de datos localStorage
+│   └── backup-data.sh               ← Backup de datos PostgreSQL
 │
 └── 📁 .github/
     └── workflows/
@@ -360,28 +363,22 @@ const ADMIN_PASSWORD = 'DH2025';      // ← Cambia esto
 const STAFF_PASSWORD = 'DH-STAFF';   // ← Cambia esto
 ```
 
-### Persistencia de Datos
+### Persistencia de Datos (v4.0 — PostgreSQL)
 
-Todos los datos del admin se guardan en el **localStorage del navegador**:
+> ✅ **Migración completa**: Los datos viven en **PostgreSQL** hospedado en **Railway**. El frontend consume una API REST con autenticación JWT. Ya no depende de `localStorage` para datos de negocio.
 
-| Clave | Contenido |
-|-------|-----------|
-| `dh_products` | Inventario de productos |
-| `dh_sales` | Registro de ventas |
-| `dh_customers` | Base de datos de clientes |
-| `dh_cashbox` | Estado de caja chica |
-| `dh_appointments` | Citas agendadas |
+| Recurso | Endpoint API | Método |
+|---------|-------------|--------|
+| Inventario | `/api/inventory` | GET |
+| Stock de producto | `/api/inventory/:sku/stock` | PUT |
+| Precio de producto | `/api/inventory/:sku/price` | PUT |
+| Clientes | `/api/clients` | GET, POST |
+| Ventas | `/api/sales` | GET, POST |
+| Citas | `/api/appointments` | GET, POST |
+| Cortes de nómina | `/api/payroll/cuts` | POST |
+| Autenticación | `/api/auth/login` | POST |
 
-**Backup de datos:**
-```bash
-# En la consola del navegador (F12 → Console):
-# Exportar todos los datos
-JSON.stringify({
-  products: JSON.parse(localStorage.getItem('dh_products')),
-  sales: JSON.parse(localStorage.getItem('dh_sales')),
-  customers: JSON.parse(localStorage.getItem('dh_customers'))
-})
-```
+**`localStorage` restante**: solo `dh_jwt` (token JWT para persistir la sesión entre recargas).
 
 ---
 
@@ -459,7 +456,7 @@ Frontend
 ├── HTML5 Semántico
 ├── CSS3 (Custom Properties, Flexbox, Grid, Animations)
 ├── JavaScript Vanilla ES6+
-│   ├── localStorage API (persistencia de datos)
+│   ├── Fetch API → Railway (POST/GET/PUT con Bearer JWT)
 │   ├── Canvas API (gráficas del dashboard)
 │   ├── QRCode.js (códigos QR de clientes)
 │   └── jsPDF (generación de reportes)
@@ -507,13 +504,14 @@ Infraestructura
 - [ ] Lightbox para galería de fotos
 - [ ] Más fotos del trabajo real
 
-### 🔮 v4.0 — Backend Real (Planeado)
-- [ ] Supabase (base de datos en la nube)
-- [ ] Autenticación segura (JWT)
-- [ ] API REST para sincronización multi-dispositivo
-- [ ] Integración Google Calendar (API)
-- [ ] PWA con notificaciones push
-- [ ] Mercado Pago (pagos online)
+### ✅ v4.0 — Backend PostgreSQL + JWT (Julio 2026)
+- [x] PostgreSQL en Railway (base de datos en la nube)
+- [x] Autenticación JWT (admin/staff)
+- [x] API REST para sincronización multi-dispositivo
+- [x] Carrito SOT + modales/toasts visuales
+- [ ] Integración Google Calendar (API) — pendiente v5.0
+- [ ] PWA con notificaciones push — pendiente v5.0
+- [ ] Mercado Pago (pagos online) — pendiente v5.0
 
 ### 🔮 v5.0 — App Móvil (Futuro)
 - [ ] React Native (iOS + Android)
