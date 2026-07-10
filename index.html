@@ -2916,6 +2916,18 @@
         width: 20px;
         text-align: center;
       }
+      /* IMPL-20260711-01 — soporte para iconos Lucide (i[data-lucide]) en el sidebar */
+      .admin-sidebar i[data-lucide] {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        vertical-align: middle;
+      }
+      .admin-sidebar i[data-lucide] svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2;
+      }
       .admin-sidebar .sidebar-footer {
         border-top: 1px solid #E1E4E8;
         padding: 16px 0;
@@ -3296,6 +3308,8 @@
         to { opacity: 0; }
       }
     </style>
+    <!-- IMPL-20260711-01 — Lucide icons (SPEC-005) -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   </head>
   <body>
     <header class="navbar" aria-label="Navegación principal">
@@ -4009,35 +4023,36 @@
     </a>
 
     <div class="admin-overlay" id="adminOverlay" aria-hidden="true">
-      <div class="admin-shell" role="dialog" aria-modal="true" aria-labelledby="adminPanelTitle">
+      <!-- IMPL-20260711-01 — admin-shell no es un diálogo modal (es la app completa) -->
+      <div class="admin-shell" aria-labelledby="adminPanelTitle">
         <aside class="admin-sidebar" id="adminSidebar">
           <div class="sidebar-header">
             <h1>🏠 DetailingHouse</h1>
           </div>
           <nav class="sidebar-nav" id="adminSidebarNav">
             <a href="#" class="nav-item active" data-tab="pos" data-roles="admin,staff">
-              <span class="nav-icon">🛒</span><span class="nav-text">POS</span>
+              <i data-lucide="shopping-cart"></i><span class="nav-text">POS</span>
             </a>
             <a href="#" class="nav-item" data-tab="dashboard" data-roles="admin">
-              <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
+              <i data-lucide="layout-dashboard"></i><span class="nav-text">Dashboard</span>
             </a>
             <a href="#" class="nav-item" data-tab="inventario" data-roles="admin">
-              <span class="nav-icon">📦</span><span class="nav-text">Inventario</span>
+              <i data-lucide="package"></i><span class="nav-text">Inventario</span>
             </a>
             <a href="#" class="nav-item" data-tab="servicios" data-roles="admin">
-              <span class="nav-icon">🛍️</span><span class="nav-text">Servicios</span>
+              <i data-lucide="concierge-bell"></i><span class="nav-text">Servicios</span>
             </a>
             <a href="#" class="nav-item" data-tab="clientes" data-roles="admin,staff">
-              <span class="nav-icon">👥</span><span class="nav-text">Clientes</span>
+              <i data-lucide="users"></i><span class="nav-text">Clientes</span>
             </a>
             <a href="#" class="nav-item" data-tab="agenda" data-roles="admin,staff">
-              <span class="nav-icon">📅</span><span class="nav-text">Agenda</span>
+              <i data-lucide="calendar"></i><span class="nav-text">Agenda</span>
             </a>
             <a href="#" class="nav-item" data-tab="caja" data-roles="admin">
-              <span class="nav-icon">💰</span><span class="nav-text">Caja Chica</span>
+              <i data-lucide="wallet"></i><span class="nav-text">Caja Chica</span>
             </a>
             <a href="#" class="nav-item" data-tab="nomina" data-roles="admin">
-              <span class="nav-icon">💼</span><span class="nav-text">Nómina</span>
+              <i data-lucide="banknote"></i><span class="nav-text">Nómina</span>
             </a>
           </nav>
           <div class="sidebar-footer">
@@ -4806,10 +4821,11 @@
                     item.id === 'SRV-007' ? '💺' :
                     item.id === 'SRV-008' ? '🌬️' : '⭐';
       const isMain = ['SRV-001','SRV-002','SRV-003'].includes(item.id);
+      // IMPL-20260711-01 — Sanitizar item.id y item.name para prevenir XSS
       return `
-        <button type="button" class="svc-tile${isMain ? '' : ' is-secondary'}" data-strip-svc="${item.id}" aria-label="${item.name}">
-          <span class="svc-emoji">${emoji}</span>
-          <span class="svc-name">${item.name}</span>
+        <button type="button" class="svc-tile${isMain ? '' : ' is-secondary'}" data-strip-svc="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)}">
+          <span class="svc-emoji">${escapeHtml(emoji)}</span>
+          <span class="svc-name">${escapeHtml(item.name)}</span>
           <span class="svc-price">${formatCurrency(finalPrice(item.price))}</span>
           <span class="svc-tag">${isMain ? 'Principal' : 'Secundario'}</span>
         </button>
@@ -5952,7 +5968,10 @@
   }
 
   // ── Bind CRUD listeners (delegado, una sola vez) ────────────────
-  function bindCrudInteractions() {
+  // IMPL-20260711-01 — Dividido en 3 subfunciones para mejorar legibilidad (audit GEMINI)
+
+  // (Productos) edición/eliminación vía tabla + guardado + confirmación de borrado
+  function bindProductCrud() {
     // Delegación: clicks en botones [data-edit] / [data-delete] en tabla productos
     byId('productsTableBody')?.addEventListener('click', e => {
       const editBtn   = e.target.closest('[data-edit]');
@@ -6006,7 +6025,10 @@
         dhAdminToast('Error al eliminar: ' + err.message, 'error');
       }
     });
+  }
 
+  // (Servicios) crear/editar/eliminar vía tabla + modales
+  function bindServiceCrud() {
     // Agregar servicio
     byId('addServiceBtn')?.addEventListener('click', () => openServiceModal('create'));
 
@@ -6076,7 +6098,10 @@
         dhAdminToast('Error al eliminar: ' + err.message, 'error');
       }
     });
+  }
 
+  // Modales genéricos: cerrar por botón [data-close-modal], backdrop o tecla ESC
+  function bindModalEvents() {
     // Modal close (data-close-modal) delegado en document
     document.addEventListener('click', e => {
       const closer = e.target.closest('[data-close-modal]');
@@ -6093,6 +6118,12 @@
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') document.querySelectorAll('.dh-modal-overlay.open').forEach(m => m.classList.remove('open'));
     });
+  }
+
+  function bindCrudInteractions() {
+    bindProductCrud();
+    bindServiceCrud();
+    bindModalEvents();
   }
 
 
@@ -6117,6 +6148,10 @@
     bindAdminInteractions();
     // Bind CRUD productos/servicios + modal close (Fase 3-4)
     bindCrudInteractions();
+    // IMPL-20260711-01 — Inicializar iconos Lucide (sidebar admin)
+    if (typeof lucide !== 'undefined') {
+      try { lucide.createIcons(); } catch (e) { console.warn('Lucide no se pudo inicializar', e); }
+    }
     // UI admin (login box vs panel)
     syncRoleUI();
     // Render admin inicial
