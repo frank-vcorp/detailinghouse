@@ -83,21 +83,34 @@
 - **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0549_fix-cors-rewrites.md`](context/checkpoints/CHK_2026-07-10_0549_fix-cors-rewrites.md)
 - **Deploy:** `vercel deploy --prod --yes` (Vercel CLI autenticado como `frank-3582`). Alias: `https://detailinghouse.com.mx`. URL deploy: `https://detailinghouse-ljihb7gak-frank-saavedras-projects.vercel.app`
 
+#### `FIX-20260710-07` — Sanitización XSS en `dhAdminModal` + otros ✅
+- **Cambios:** helper `escapeHtml` (L4035) + 16 ocurrencias en `index.html` (cubrió los 2 callers de la SPEC + 10+ bonus en `renderPosCatalog`)
+- **ADR:** [`context/decisions/ADR-20260710-05-escape-html-no-dompurify.md`](context/decisions/ADR-20260710-05-escape-html-no-dompurify.md) (zero-deps security)
+- **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0613_fix-xss.md`](context/checkpoints/CHK_2026-07-10_0613_fix-xss.md)
+- **Verificado en producción:** 0 console errors, 0 CSP violations, 7/7 tabs, venta E2E OK
+- **Pendiente:** 4 innerHTML adicionales sin escapar → ver `FIX-20260710-15`
+
+#### `FIX-20260710-03` — Content-Security-Policy + HSTS ✅
+- **Cambios:** `vercel.json` y `netlify.toml` con CSP completo y HSTS
+- **Directivas:** `default-src 'self'`, `script-src 'self' 'unsafe-inline'`, `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, `font-src 'self' https://fonts.gstatic.com`, `img-src 'self' data:`, `connect-src 'self' https://detailinghouse-api-production.up.railway.app`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `object-src 'none'`, `upgrade-insecure-requests`
+- **HSTS:** `max-age=31536000; includeSubDomains`
+- **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0613_fix-csp.md`](context/checkpoints/CHK_2026-07-10_0613_fix-csp.md)
+- **Verificado en producción:** todos los headers presentes vía `curl -sI`
+
 ### [ ] Pendiente — Deuda técnica priorizada
 
 | ID | Tarea | Prioridad | Origen | SPEC |
 |---|---|---|---|---|
 | `FIX-20260710-02` | Añadir tests automatizados del frontend (vitest o jest + jsdom) | Alta | `ARCH-20260710-01` §4.3 | pendiente |
-| `FIX-20260710-03` | Añadir Content-Security-Policy en `netlify.toml` | Alta | `ARCH-20260710-01` §3 spec | pendiente |
 | `FIX-20260710-04` | Persistir puntos de cliente vía `api.addPoints()` | Media | `ARCH-20260710-01` §4.1 #4 | pendiente |
 | `FIX-20260710-05` | Usar `api.getPayroll()` en lugar de cálculo local | Media | `ARCH-20260710-01` §4.1 #5 | pendiente |
 | `FIX-20260710-06` | Usar `api.getDashboard()` en lugar de cálculo local | Media | `ARCH-20260710-01` §4.1 #5 | pendiente |
-| `FIX-20260710-07` | Sanitizar `body` de `dhAdminModal` (XSS latente) | Alta | `ARCH-20260710-01` §4.2 #9 | pendiente |
 | `FIX-20260710-08` | Reintentos con backoff en `api.request` | Media | `ARCH-20260710-01` §4.3 #12 | pendiente |
 | `FIX-20260710-09` | Reemplazar QR SVG decorativo por QR real (lib qrcode.js) | Baja | `ARCH-20260710-01` §4 | pendiente |
 | `FIX-20260710-10` | Poda de HTML estático para cumplir meta CA-9 (≤ 4,250 líneas) | Baja | `FIX-20260710-01` desviación | pendiente |
 | `FIX-20260710-11` | Añadir `DELETE /sales/:id` al backend (para limpiar ventas de prueba) | Media | sprint actual | pendiente |
-| `FIX-20260710-14` | Limpiar 2 ventas de prueba en Railway DB (id `51261b99-...` y nueva) | Media | sprint actual | pendiente |
+| `FIX-20260710-14` | Limpiar 4 ventas de prueba en Railway DB (acumuladas de smokes) | Media | sprint actual | pendiente |
+| `FIX-20260710-15` | Escapar 4 innerHTML restantes con user-data (L4415, L4544, L4686, L4688, L4396) | Alta | `FIX-20260710-07` audit | pendiente |
 
 ### 🔐 Setup de autenticación (documentado 2026-07-10)
 
