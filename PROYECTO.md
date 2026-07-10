@@ -110,7 +110,21 @@
 | `FIX-20260710-10` | Poda de HTML estático para cumplir meta CA-9 (≤ 4,250 líneas) | Baja | `FIX-20260710-01` desviación | pendiente |
 | `FIX-20260710-11` | Añadir `DELETE /sales/:id` al backend (para limpiar ventas de prueba) | Media | sprint actual | pendiente |
 | `FIX-20260710-14` | Limpiar 4 ventas de prueba en Railway DB (acumuladas de smokes) | Media | sprint actual | pendiente |
-| `FIX-20260710-15` | Escapar 4 innerHTML restantes con user-data (L4415, L4544, L4686, L4688, L4396) | Alta | `FIX-20260710-07` audit | pendiente |
+| `FIX-20260710-15` | Escapar 4 innerHTML restantes con user-data (L4415, L4544, L4686, L4688, L4396) | Alta | `FIX-20260710-07` audit | ✅ cerrado |
+
+#### `FIX-20260710-08` — Reintentos con backoff exponencial en `api.request` ✅
+- **Cambios:** `api.request` refactorizado con loop de reintentos para GETs (3 intentos totales, backoff 1s + 2s)
+- **Solo errores transitorios:** network errors + HTTP 5xx/429. NO reintenta 4xx (excepto 429) — crítico para no duplicar ventas
+- **Zero dependencias externas** (sin p-retry, sin axios)
+- **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0624_fix-retry.md`](context/checkpoints/CHK_2026-07-10_0624_fix-retry.md)
+- **Verificado en producción:** smoke E2E 17/17 OK, 0 console errors
+
+#### `FIX-20260710-15` — 4 innerHTML restantes con XSS ✅
+- **Cambios:** 5 innerHTML adicionales con `escapeHtml` aplicado (17 valores user-data)
+- **Helper** `escapeHtml` reutilizado (L4035, creado en FIX-07)
+- **Lineas modificadas:** L4429 (datalist), L4448, L4576, L4720, L4722
+- **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0624_fix-xss-remaining.md`](context/checkpoints/CHK_2026-07-10_0624_fix-xss-remaining.md)
+- **Verificado en producción:** smoke E2E 17/17 OK
 
 ### 🔐 Setup de autenticación (documentado 2026-07-10)
 
