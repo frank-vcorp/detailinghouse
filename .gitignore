@@ -62,3 +62,4 @@ update_docs.py
 # No subir backups con datos de clientes
 *-backup-*.json
 backup-*.json
+.vercel
