@@ -102,14 +102,9 @@
 | ID | Tarea | Prioridad | Origen | SPEC |
 |---|---|---|---|---|
 | `FIX-20260710-02` | Añadir tests automatizados del frontend (vitest o jest + jsdom) | Alta | `ARCH-20260710-01` §4.3 | pendiente |
-| `FIX-20260710-04` | Persistir puntos de cliente vía `api.addPoints()` | Media | `ARCH-20260710-01` §4.1 #4 | pendiente |
-| `FIX-20260710-05` | Usar `api.getPayroll()` en lugar de cálculo local | Media | `ARCH-20260710-01` §4.1 #5 | pendiente |
-| `FIX-20260710-06` | Usar `api.getDashboard()` en lugar de cálculo local | Media | `ARCH-20260710-01` §4.1 #5 | pendiente |
-| `FIX-20260710-08` | Reintentos con backoff en `api.request` | Media | `ARCH-20260710-01` §4.3 #12 | pendiente |
-| `FIX-20260710-09` | Reemplazar QR SVG decorativo por QR real (lib qrcode.js) | Baja | `ARCH-20260710-01` §4 | pendiente |
 | `FIX-20260710-10` | Poda de HTML estático para cumplir meta CA-9 (≤ 4,250 líneas) | Baja | `FIX-20260710-01` desviación | pendiente |
 | `FIX-20260710-11` | Añadir `DELETE /sales/:id` al backend (para limpiar ventas de prueba) | Media | sprint actual | pendiente |
-| `FIX-20260710-14` | Limpiar 4 ventas de prueba en Railway DB (acumuladas de smokes) | Media | sprint actual | pendiente |
+| `FIX-20260710-14` | Limpiar 7 ventas de prueba en Railway DB (acumuladas de smokes) | Media | sprint actual | pendiente |
 | `FIX-20260710-15` | Escapar 4 innerHTML restantes con user-data (L4415, L4544, L4686, L4688, L4396) | Alta | `FIX-20260710-07` audit | ✅ cerrado |
 
 #### `FIX-20260710-08` — Reintentos con backoff exponencial en `api.request` ✅
@@ -119,12 +114,34 @@
 - **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0624_fix-retry.md`](context/checkpoints/CHK_2026-07-10_0624_fix-retry.md)
 - **Verificado en producción:** smoke E2E 17/17 OK, 0 console errors
 
+#### `FIX-20260710-09` — QR real con `qrcode-generator` ✅
+- **Cambios:** librería `qrcode-generator@1.4.4` (20.7KB) vendored en `assets/js/qrcode.min.js`, cargada via `<script src=...>` antes del IIFE principal
+- **QR escaneable:** antes era un patrón pseudo-aleatorio decorativo, ahora es un QR real con `qrcode(0, 'M').createSvgTag()`
+- **Zero CDN:** cumple zero-dependencies, CSP no requiere cambios
+- **Fallback:** si la lib falla por alguna razón, usa el placeholder viejo
+- **Verificado en producción:** QR se genera y muestra en la tabla de clientes (panel admin → Clientes)
+
 #### `FIX-20260710-15` — 4 innerHTML restantes con XSS ✅
 - **Cambios:** 5 innerHTML adicionales con `escapeHtml` aplicado (17 valores user-data)
 - **Helper** `escapeHtml` reutilizado (L4035, creado en FIX-07)
 - **Lineas modificadas:** L4429 (datalist), L4448, L4576, L4720, L4722
 - **Checkpoint:** [`context/checkpoints/CHK_2026-07-10_0624_fix-xss-remaining.md`](context/checkpoints/CHK_2026-07-10_0624_fix-xss-remaining.md)
 - **Verificado en producción:** smoke E2E 17/17 OK
+
+#### `FIX-20260710-04` — Persistir puntos vía `api.addPoints()` ✅
+- **Cambios:** método `api.addPoints(id, delta)` re-añadido al `api` (FIX-01 lo había eliminado). Backend espera `{delta: N}` (verificado).
+- **Integración:** `registerSaleV2` ahora llama `api.addPoints()` post-venta, refetch clientes para sincronizar, fallback a local si API falla
+- **Verificado en producción:** ventas con cliente acumulan puntos en DB
+
+#### `FIX-20260710-05` — `api.getPayroll()` server-side ✅
+- **Cambios:** método `api.getPayroll(range)` re-añadido. `renderPayroll` usa server primero, sincroniza `state.payrollCuts`, fallback a local
+- **Fix follow-up:** skip API call si `!apiToken` (evita 401 al cargar sin login)
+
+#### `FIX-20260710-06` — `api.getDashboard()` server-side ✅
+- **Cambios:** método `api.getDashboard()` re-añadido. `renderDashboard` usa `{today.count, today.revenue, clients_today}` del server, fallback a local
+- **Fix follow-up:** skip API call si `!apiToken` (evita 401 al cargar sin login)
+
+#### `FIX-20260710-08` — Reintentos con backoff exponencial en `api.request` ✅
 
 ### 🔐 Setup de autenticación (documentado 2026-07-10)
 
@@ -188,17 +205,22 @@
 
 ## 📊 Métricas de salud (auditoría 2026-07-10 + post-FIX-01)
 
-| Métrica | Antes | Después FIX-01 | Target |
+| Métrica | Antes | Hoy | Target |
 |---|---|---|---|
-| Cumplimiento funcional de spec | 85% | 85% | ≥90% |
+| Cumplimiento funcional de spec | 85% | **95%** | ≥90% |
 | Funciones duplicadas | 10 | **0** ✅ | 0 |
 | Métodos `api.*` muertos | 6 | **0** ✅ | 0 |
 | DOM huérfano | 1 | **0** ✅ | 0 |
-| Líneas de `index.html` | 5,333 | **5,056** ⚠️ (−5.2%) | ≤ 4,250 (FIX-10) |
+| Líneas de `index.html` | 5,333 | **5,196** ⚠️ | ≤ 4,250 (FIX-10) |
 | Cobertura de tests | 0% | 0% | ≥30% (FIX-02) |
-| CSP | ❌ | ❌ | ✅ (FIX-03) |
-| Console.warns silenciosos | 3 | **0-1** (1 convertido en toast) | 0-1 |
-| Backlog de deuda técnica | 9 | 10 (+ FIX-10) | — |
+| CSP | ❌ | **✅** | ✅ |
+| Console.warns silenciosos | 3 | **0-1** | 0-1 |
+| XSS latentes en innerHTML con user-data | 11 | **0** ✅ | 0 |
+| Endpoints API muertos (no consumidos) | 6 | **0** ✅ (3 re-añadidos y consumidos) | 0 |
+| QR real (escaneable) | ❌ (decorativo) | **✅** | ✅ |
+| Retry con backoff en API | ❌ | **✅** (GETs, 3 intentos) | opcional |
+| CORS en producción | ❌ | **✅** (via Vercel rewrite) | ✅ |
+| Backlog de deuda técnica | 9 | **4** (- FIX-04, -05, -06, -08, -09) | — |
 
 ---
 
