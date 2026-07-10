@@ -3946,23 +3946,57 @@
     async request(path, options = {}) {
       const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
       if (apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
-      try {
-        const resp = await fetch(`${API_BASE}${path}`, { ...options, headers });
-        if (resp.status === 401) {
-          apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt');
-          throw new Error('Sesión expirada');
+
+      // FIX-20260710-08: retry con backoff exponencial solo para GETs.
+      // POST/PUT/DELETE no se reintentan para evitar duplicados (ventas, stock, citas).
+      const method = (options.method || 'GET').toUpperCase();
+      const isRetryable = method === 'GET';
+      const maxAttempts = isRetryable ? 3 : 1;
+      const backoffMs = [0, 1000, 2000]; // ms antes de cada intento (intento 1 = 0ms)
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (backoffMs[attempt - 1] > 0) {
+          await new Promise(r => setTimeout(r, backoffMs[attempt - 1]));
+          console.warn(`[API] Reintento ${attempt}/${maxAttempts} para ${method} ${path} tras ${backoffMs[attempt - 1]}ms`);
         }
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({}));
-          throw new Error(err.error || `HTTP ${resp.status}`);
+
+        try {
+          const resp = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+          if (resp.status === 401) {
+            apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt');
+            throw new Error('Sesión expirada');
+          }
+
+          if (!resp.ok) {
+            // 4xx (excepto 429) son errores del cliente, definitivos: no reintentar.
+            if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+              const err = await resp.json().catch(() => ({}));
+              throw new Error(err.error || `HTTP ${resp.status}`);
+            }
+            // 5xx y 429: reintentar si quedan intentos.
+            if (attempt < maxAttempts) continue;
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${resp.status}`);
+          }
+
+          const text = await resp.text();
+          return text ? JSON.parse(text) : null;
+        } catch (e) {
+          // Network errors transitorios: reintentar si quedan intentos.
+          const isNetworkError = e.message === 'Failed to fetch' ||
+                                 e.message === 'NetworkError' ||
+                                 e.message.includes('fetch');
+          if (isNetworkError && attempt < maxAttempts) {
+            console.warn(`[API] Network error en ${method} ${path}: ${e.message}`);
+            continue;
+          }
+          // Agotados los reintentos o error no reintentable: propagar.
+          if (isNetworkError) {
+            console.warn(`[API] Sin conexión tras ${maxAttempts} intentos, usando datos locales`);
+          }
+          throw e;
         }
-        const text = await resp.text();
-        return text ? JSON.parse(text) : null;
-      } catch (e) {
-        if (e.message === 'Failed to fetch' || e.message === 'NetworkError') {
-          console.warn('[API] Sin conexión, usando datos locales');
-        }
-        throw e;
       }
     },
     // Auth
@@ -4393,7 +4427,7 @@
   function renderPosClientOptions() {
     const list = byId('posClientOptions');
     if (!list) return;
-    list.innerHTML = state.clients.map(c => `<option value="${c.name} — ${c.phone}"></option>`).join('');
+    list.innerHTML = state.clients.map(c => `<option value="${escapeHtml(c.name)} — ${escapeHtml(c.phone)}"></option>`).join('');
   }
 
   function getClient(id) { return state.clients.find(c => c.id === id); }
@@ -4412,7 +4446,7 @@
     }
     const visits = getClientVisits(client.id);
     const reward = client.points >= 50 ? 'Puede canjear 1 lavado Esencial gratis.' : `Le faltan ${50 - client.points} puntos para un lavado Esencial gratis.`;
-    box.innerHTML = `<strong>${client.name}</strong> · ${client.phone}<br>Puntos: <strong>${client.points}</strong> · Visitas: <strong>${visits}</strong><br>${reward}`;
+    box.innerHTML = `<strong>${escapeHtml(client.name)}</strong> · ${escapeHtml(client.phone)}<br>Puntos: <strong>${escapeHtml(client.points)}</strong> · Visitas: <strong>${escapeHtml(visits)}</strong><br>${escapeHtml(reward)}`;
   }
 
   function renderPosCatalog() {
@@ -4541,7 +4575,7 @@
     const body     = byId('clientsBody');
     const filtered = state.clients.filter(c => !search || `${c.name} ${c.phone}`.toLowerCase().includes(search));
     if (!body) return;
-    body.innerHTML = filtered.length ? filtered.map(client => `<tr><td><strong>${client.name}</strong><br><span class="muted">${client.phone} · ${getClientVisits(client.id)} visitas</span></td><td>${client.carType}</td><td>${client.points}</td><td><div class="client-qr">${qrSvg(client.id)}</div></td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay clientes registrados.</td></tr>';
+    body.innerHTML = filtered.length ? filtered.map(client => `<tr><td><strong>${escapeHtml(client.name)}</strong><br><span class="muted">${escapeHtml(client.phone)} · ${escapeHtml(getClientVisits(client.id))} visitas</span></td><td>${escapeHtml(client.carType)}</td><td>${escapeHtml(client.points)}</td><td><div class="client-qr">${qrSvg(client.id)}</div></td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay clientes registrados.</td></tr>';
     renderPosClientOptions();
     renderSelectedClientInfo();
   }
@@ -4683,9 +4717,9 @@
     byId('topServicesList').innerHTML = Object.entries(serviceMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
     byId('topProductsList').innerHTML = Object.entries(productMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
     const low = state.inventory.filter(item => (Number(item.stock) || 0) < 3);
-    byId('stockAlerts').innerHTML = low.length ? low.map(item => `<span class="alert-pill">${item.name} · ${item.stock} ud.</span>`).join('') : '<span class="muted">Sin alertas activas.</span>';
+    byId('stockAlerts').innerHTML = low.length ? low.map(item => `<span class="alert-pill">${escapeHtml(item.name)} · ${escapeHtml(item.stock)} ud.</span>`).join('') : '<span class="muted">Sin alertas activas.</span>';
     byId('dashboardMetrics').innerHTML = `<div class="mini-stat"><span>Ingresos de caja</span><strong>${formatCurrency(openCash ? openCash.incomes.reduce((s,m)=>s+m.amount,0) : 0)}</strong></div><div class="mini-stat"><span>Gastos de caja</span><strong>${formatCurrency(expenses)}</strong></div><div class="mini-stat"><span>Stock bajo</span><strong>${low.length}</strong></div>`;
-    byId('recentSalesBody').innerHTML = state.sales.length ? state.sales.slice(0, 6).map(sale => `<tr><td>${new Date(sale.timestamp).toLocaleString('es-MX')}</td><td>${sale.items.map(i => `${i.name} x${i.qty}`).join(', ')}</td><td>${sale.paymentMethod}</td><td>${formatCurrency(sale.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Aún no hay ventas registradas.</td></tr>';
+    byId('recentSalesBody').innerHTML = state.sales.length ? state.sales.slice(0, 6).map(sale => `<tr><td>${new Date(sale.timestamp).toLocaleString('es-MX')}</td><td>${sale.items.map(i => `${escapeHtml(i.name)} x${escapeHtml(i.qty)}`).join(', ')}</td><td>${escapeHtml(sale.paymentMethod)}</td><td>${formatCurrency(sale.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Aún no hay ventas registradas.</td></tr>';
     drawChart();
   }
 
