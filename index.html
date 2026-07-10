@@ -4882,7 +4882,7 @@
       const item = state.inventory.find(p => p.sku === sku);
       const next = await window.dhAdminModal({
         title: 'Editar stock',
-        body: `<p><b>${item.name}</b> (${item.sku || ''})</p><p>Stock actual: ${item.stock}</p><label>Nuevo stock: <input type="number" min="0" step="1" value="${item.stock}" data-modal-input /></label>`,
+        body: `<p><b>${escapeHtml(item.name)}</b> (${escapeHtml(item.sku || '')})</p><p>Stock actual: ${escapeHtml(item.stock)}</p><label>Nuevo stock: <input type="number" min="0" step="1" value="${escapeHtml(item.stock)}" data-modal-input /></label>`,
         okText: 'Guardar'
       });
       if (next === null) return;
@@ -5000,7 +5000,7 @@
       const appt = state.appointments.find(a => a.id === id); if (!appt) return;
       const action = await window.dhAdminModal({
         title: 'Actualizar cita',
-        body: `<p><b>${appt.client}</b> · ${appt.service}</p><p>${appt.date} ${appt.time}</p><p>${appt.address}</p><label>Acción: <select data-modal-input><option value="completar">Completar</option><option value="cancelar">Cancelar</option></select></label>`,
+        body: `<p><b>${escapeHtml(appt.client)}</b> · ${escapeHtml(appt.service)}</p><p>${escapeHtml(appt.date)} ${escapeHtml(appt.time)}</p><p>${escapeHtml(appt.address)}</p><label>Acción: <select data-modal-input><option value="completar">Completar</option><option value="cancelar">Cancelar</option></select></label>`,
         okText: 'Guardar'
       });
       if (!action) return;
