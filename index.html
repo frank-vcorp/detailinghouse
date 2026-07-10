@@ -3668,7 +3668,6 @@
                   </div>
                   <div class="success-msg" id="posSuccess"></div>
                   <div class="error-msg" id="posError"></div>
-                  <div id="cartItems" class="pos-old-sidecart" aria-hidden="true"></div>
                 </div>
               </div>
               <button class="pos-cart-toggle" id="posCartToggle" type="button" aria-label="Abrir carrito">
@@ -3874,362 +3873,462 @@
       </div>
     </div>
   <script>
-    const WHATSAPP_BASE = 'https://wa.me/524461153815';
-    const API_BASE = 'https://detailinghouse-api-production.up.railway.app/api';
-    let apiToken = null;
-    let apiUser = null;
+(() => {
+  /* ════════════════════════════════════════════════════════════════
+     DetailingHouse · Frontend unificado
+     Sprint FIX-20260710-01 — fusiona los dos bloques <script>
+     previos en uno solo.  Estructura §5.1 de la SPEC.
+     ════════════════════════════════════════════════════════════════ */
 
-    // === API CLIENT ===
-    const api = {
-        async request(path, options = {}) {
-            const url = `${API_BASE}${path}`;
-            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-            if (apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
-            try {
-                const resp = await fetch(url, { ...options, headers });
-                if (resp.status === 401) { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); throw new Error('Sesión expirada'); }
-                if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || `HTTP ${resp.status}`); }
-                const text = await resp.text();
-                return text ? JSON.parse(text) : null;
-            } catch (e) {
-                if (e.message === 'Failed to fetch' || e.message === 'NetworkError') {
-                    console.warn('[API] Sin conexión, usando datos locales');
-                }
-                throw e;
-            }
-        },
-        // Auth
-        async login(username, password) {
-            const data = await this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
-            if (data.token) { apiToken = data.token; apiUser = data.user; localStorage.setItem('dh_jwt', apiToken); }
-            return data;
-        },
-        logout() { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); },
-        restoreToken() { const t = localStorage.getItem('dh_jwt'); if (t) apiToken = t; return t; },
-        // Inventory
-        getInventory: () => api.request('/inventory'),
-        updateStock: (sku, stock) => api.request(`/inventory/${sku}/stock`, { method: 'PUT', body: JSON.stringify({ stock }) }),
-        updatePrice: (sku, price) => api.request(`/inventory/${sku}/price`, { method: 'PUT', body: JSON.stringify({ price }) }),
-        patchProduct: (sku, fields) => api.request(`/inventory/${sku}`, { method: 'PATCH', body: JSON.stringify(fields) }),
-        addProduct: (data) => api.request('/inventory', { method: 'POST', body: JSON.stringify(data) }),
-        // Clients
-        getClients: () => api.request('/clients'),
-        addClient: (data) => api.request('/clients', { method: 'POST', body: JSON.stringify(data) }),
-        updateClient: (id, data) => api.request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-        addPoints: (id, points) => api.request(`/clients/${id}/points`, { method: 'POST', body: JSON.stringify({ points }) }),
-        // Sales
-        getSales: () => api.request('/sales'),
-        getDashboard: () => api.request('/sales/dashboard'),
-        registerSale: (data) => api.request('/sales', { method: 'POST', body: JSON.stringify(data) }),
-        // Appointments
-        getAppointments: () => api.request('/appointments'),
-        addAppointment: (data) => api.request('/appointments', { method: 'POST', body: JSON.stringify(data) }),
-        updateAppointment: (id, data) => api.request(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-        deleteAppointment: (id) => api.request(`/appointments/${id}`, { method: 'DELETE' }),
-        // Cash
-        getActiveCash: () => api.request('/cash/active'),
-        openCash: (amount) => api.request('/cash/open', { method: 'POST', body: JSON.stringify({ initialAmount: amount }) }),
-        addMovement: (data) => api.request('/cash/movement', { method: 'POST', body: JSON.stringify(data) }),
-        closeCash: () => api.request('/cash/close', { method: 'POST' }),
-        getPayroll: (range) => api.request(`/cash/payroll?range=${range}`),
-        generateCut: (range) => api.request('/cash/payroll/cut', { method: 'POST', body: JSON.stringify({ range }) }),
-    };
-    // STORAGE (claves localStorage) eliminado — todo en PostgreSQL
-    const INVENTORY_VERSION = 'A1A_2026_V1';
+  // ── 1. Constantes globales ────────────────────────────────────────
+  const WHATSAPP_BASE = 'https://wa.me/524461153815';
+  const API_BASE      = 'https://detailinghouse-api-production.up.railway.app/api';
+  const TERMINAL_RATE = 1.036;   // comisión terminal 3.6%
+  const IVA_RATE      = 1.16;    // IVA México 16%
 
-    const baseCatalog = [
-      { sku: 'A1A-001', name: 'VINIL PROTECT', category: 'interiores', categoryLabel: 'INTERIORES', price: 150, presentation: '600ml', description: 'Abrillantador de interiores con filtro solar, no graso y sin evaporar. Diluible 1:3.' },
-      { sku: 'A1A-002', name: 'ECOWASH', category: 'interiores', categoryLabel: 'INTERIORES', price: 120, presentation: '1L', description: 'APC ideal para telas, piel, vinipiel, plásticos y alcántara. Diluciones hasta 1:15.' },
-      { sku: 'A1A-003', name: 'H2L', category: 'interiores', categoryLabel: 'INTERIORES', price: 130, presentation: '600ml', description: 'Humectante para piel con extractos naturales, no graso. Previene cuarteaduras y es diluible.' },
-      { sku: 'A1A-004', name: 'RESTORED RIM', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 130, presentation: '600ml', description: 'Descontaminante de rines que elimina sarro, grasas y polvo de balata. Diluible 1:10.' },
-      { sku: 'A1A-005', name: 'SHINE WEATHER PROOF', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 150, presentation: '600ml', description: 'Abrillantador base solvente, repelente al agua, con duración de hasta 3 semanas en llantas.' },
-      { sku: 'A1A-006', name: 'SHINE BASE AGUA', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 110, presentation: '600ml', description: 'Abrillantador base agua resistente a altas temperaturas. Diluible 1:3.' },
-      { sku: 'A1A-007', name: 'DARK SIDE', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 130, presentation: '1L', description: 'Shampoo descontaminante PH ácido ideal para prelavado. Diluible 1:10.' },
-      { sku: 'A1A-008', name: 'FOAM ZERO', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '1L', description: 'Shampoo de mantenimiento PH neutro que respeta tratamientos previos. Diluible 1:10.' },
-      { sku: 'A1A-009', name: 'ACTIVE FOAM CERA', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '1L', description: 'Shampoo 2 en 1 con cera y teflón para limpiar y abrillantar. Diluible 1:20.' },
-      { sku: 'A1A-010', name: 'FOAM 12', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 130, presentation: '1L', description: 'Shampoo alcalino PH 12 para suciedad pesada, mosquitos y ceras viejas. Diluible 1:10.' },
-      { sku: 'A1A-011', name: 'NUDE PAINT', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '600ml', description: 'Lubricante para arcilla o bloque de resina con ingredientes descontaminantes. Diluible 1:20.' },
-      { sku: 'A1A-012', name: 'ACTIVE FOAM MOTOR', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 150, presentation: '1L', description: 'Desengrasante dieléctrico para motor, seguro en sensores. Diluible 1:10.' },
-      { sku: 'A1A-013', name: 'SHIELD SiO2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 200, presentation: '1L', description: 'Shampoo cerámico con dióxido de silicio para mantener y potenciar tratamientos cerámicos.' },
-      { sku: 'A1A-014', name: 'BOOSTER W2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 190, presentation: '600ml', description: 'Cera cerámica atomizable con SiO2 que prolonga brillo y repelencia. Protección de 1 mes.' },
-      { sku: 'A1A-015', name: 'CERÁMICO A2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 1100, presentation: '30ml', description: 'Cerámico base sílico con 2 años de protección para pinturas brillantes, mate y Wrap/PPF.' },
-      { sku: 'A1A-016', name: 'SHINE PROTECTANT', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 250, presentation: '1L', description: 'Carga de sílice para interior y exterior, con hasta 2 meses en molduras externas.' },
-      { sku: 'A1A-017', name: 'S2 CERAMIC', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 280, presentation: '600ml', description: 'Sellador con SiO2 ideal para retirar a máquina tras el pulido. Apariencia cerámica.' },
-      { sku: 'A1A-018', name: 'LAST TOUCH', category: 'ceras', categoryLabel: 'CERAS', price: 150, presentation: '600ml', description: 'Cera atomizable de carnauba, brillo y repelencia con efecto antiestático.' },
-      { sku: 'A1A-019', name: 'BOOSTER W2', category: 'ceras', categoryLabel: 'CERAS', price: 190, presentation: '600ml', description: 'Cera cerámica atomizable con SiO2 y protección de 1 mes.' },
-      { sku: 'A1A-020', name: 'REUSE', category: 'ceras', categoryLabel: 'CERAS', price: 350, presentation: '250g', description: 'Cera de pasta de polietileno resistente a la intemperie, con 2 meses de duración.' },
-      { sku: 'A1A-021', name: 'SHINE PROTECTANT', category: 'molduras', categoryLabel: 'MOLDURAS', price: 150, presentation: '600ml', description: 'Abrillantador cerámico resistente a altas temperaturas y agua. Hasta 1 mes en molduras.' },
-      { sku: 'A1A-022', name: 'BLACK AGAIN', category: 'molduras', categoryLabel: 'MOLDURAS', price: 190, presentation: '600ml', description: 'Pigmentador de molduras base agua con acabado mate y duración de hasta 9 meses.' },
-      { sku: 'A1A-023', name: 'NICE AIR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 110, presentation: 'Spray', description: 'Aromatizante sprayable que no mancha y ofrece 30 aplicaciones.' },
-      { sku: 'A1A-024', name: 'PINGÜINATOR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 190, presentation: '250ml', description: 'Eliminador de olores a base de enzimas con alrededor de 30 aplicaciones.' },
-      { sku: 'A1A-025', name: 'NICE AIR LATA', category: 'especiales', categoryLabel: 'ESPECIALES', price: 130, presentation: '100g', description: 'Aromatizante en lata de larga duración, hasta 30 días.' },
-      { sku: 'A1A-026', name: 'SAR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 150, presentation: '350g', description: 'Descontaminante de cristales PH neutro para eliminar marcas de lluvia ácida.' },
-      { sku: 'A1A-027', name: 'CLEAN GLASS', category: 'especiales', categoryLabel: 'ESPECIALES', price: 140, presentation: '600ml', description: 'Limpiador y sellador de cristales con capa protectora antimarcas de agua.' },
-      { sku: 'A1A-028', name: 'PADS CLEANER', category: 'especiales', categoryLabel: 'ESPECIALES', price: 150, presentation: '600ml', description: 'Preparador de superficies precerámico, limpia pads y elimina pegamento.' },
-      { sku: 'A1A-029', name: 'MOON LIGHT', category: 'especiales', categoryLabel: 'ESPECIALES', price: 190, presentation: '600ml', description: 'Sellador de WRAP y PPF con protección solar, repelencia al agua y tono satinado.' },
-      { sku: 'A1A-030', name: 'METAL POLISH', category: 'especiales', categoryLabel: 'ESPECIALES', price: 250, presentation: '—', description: 'Pulidor de cromo, aluminio y acero con brillo extremo y protección anticorrosión.' }
-    ];
+  // ── 2. Catálogo fallback (ADR-20260710-04) ────────────────────────
+  /**
+   * @deprecated Solo fallback offline-first. NO es la fuente de verdad.
+   * La SOT real es la base PostgreSQL expuesta por la API.
+   * Si la API muere, esta lista permite que la página pública siga
+   * mostrando los 30 productos A1A sin esperar a la red.
+   * Ver ADR-20260710-04 §4 (plan de remediación).
+   */
+  const OFFLINE_CATALOG_FALLBACK = [
+    { sku: 'A1A-001', name: 'VINIL PROTECT', category: 'interiores', categoryLabel: 'INTERIORES', price: 150, presentation: '600ml', description: 'Abrillantador de interiores con filtro solar, no graso y sin evaporar. Diluible 1:3.' },
+    { sku: 'A1A-002', name: 'ECOWASH', category: 'interiores', categoryLabel: 'INTERIORES', price: 120, presentation: '1L', description: 'APC ideal para telas, piel, vinipiel, plásticos y alcántara. Diluciones hasta 1:15.' },
+    { sku: 'A1A-003', name: 'H2L', category: 'interiores', categoryLabel: 'INTERIORES', price: 130, presentation: '600ml', description: 'Humectante para piel con extractos naturales, no graso. Previene cuarteaduras y es diluible.' },
+    { sku: 'A1A-004', name: 'RESTORED RIM', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 130, presentation: '600ml', description: 'Descontaminante de rines que elimina sarro, grasas y polvo de balata. Diluible 1:10.' },
+    { sku: 'A1A-005', name: 'SHINE WEATHER PROOF', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 150, presentation: '600ml', description: 'Abrillantador base solvente, repelente al agua, con duración de hasta 3 semanas en llantas.' },
+    { sku: 'A1A-006', name: 'SHINE BASE AGUA', category: 'rines-y-llantas', categoryLabel: 'RINES Y LLANTAS', price: 110, presentation: '600ml', description: 'Abrillantador base agua resistente a altas temperaturas. Diluible 1:3.' },
+    { sku: 'A1A-007', name: 'DARK SIDE', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 130, presentation: '1L', description: 'Shampoo descontaminante PH ácido ideal para prelavado. Diluible 1:10.' },
+    { sku: 'A1A-008', name: 'FOAM ZERO', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '1L', description: 'Shampoo de mantenimiento PH neutro que respeta tratamientos previos. Diluible 1:10.' },
+    { sku: 'A1A-009', name: 'ACTIVE FOAM CERA', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '1L', description: 'Shampoo 2 en 1 con cera y teflón para limpiar y abrillantar. Diluible 1:20.' },
+    { sku: 'A1A-010', name: 'FOAM 12', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 130, presentation: '1L', description: 'Shampoo alcalino PH 12 para suciedad pesada, mosquitos y ceras viejas. Diluible 1:10.' },
+    { sku: 'A1A-011', name: 'NUDE PAINT', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 110, presentation: '600ml', description: 'Lubricante para arcilla o bloque de resina con ingredientes descontaminantes. Diluible 1:20.' },
+    { sku: 'A1A-012', name: 'ACTIVE FOAM MOTOR', category: 'shampoos', categoryLabel: 'SHAMPOOS', price: 150, presentation: '1L', description: 'Desengrasante dieléctrico para motor, seguro en sensores. Diluible 1:10.' },
+    { sku: 'A1A-013', name: 'SHIELD SiO2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 200, presentation: '1L', description: 'Shampoo cerámico con dióxido de silicio para mantener y potenciar tratamientos cerámicos.' },
+    { sku: 'A1A-014', name: 'BOOSTER W2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 190, presentation: '600ml', description: 'Cera cerámica atomizable con SiO2 que prolonga brillo y repelencia. Protección de 1 mes.' },
+    { sku: 'A1A-015', name: 'CERÁMICO A2', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 1100, presentation: '30ml', description: 'Cerámico base sílico con 2 años de protección para pinturas brillantes, mate y Wrap/PPF.' },
+    { sku: 'A1A-016', name: 'SHINE PROTECTANT', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 250, presentation: '1L', description: 'Carga de sílice para interior y exterior, con hasta 2 meses en molduras externas.' },
+    { sku: 'A1A-017', name: 'S2 CERAMIC', category: 'ceramica', categoryLabel: 'CERÁMICA', price: 280, presentation: '600ml', description: 'Sellador con SiO2 ideal para retirar a máquina tras el pulido. Apariencia cerámica.' },
+    { sku: 'A1A-018', name: 'LAST TOUCH', category: 'ceras', categoryLabel: 'CERAS', price: 150, presentation: '600ml', description: 'Cera atomizable de carnauba, brillo y repelencia con efecto antiestático.' },
+    { sku: 'A1A-019', name: 'BOOSTER W2', category: 'ceras', categoryLabel: 'CERAS', price: 190, presentation: '600ml', description: 'Cera cerámica atomizable con SiO2 y protección de 1 mes.' },
+    { sku: 'A1A-020', name: 'REUSE', category: 'ceras', categoryLabel: 'CERAS', price: 350, presentation: '250g', description: 'Cera de pasta de polietileno resistente a la intemperie, con 2 meses de duración.' },
+    { sku: 'A1A-021', name: 'SHINE PROTECTANT', category: 'molduras', categoryLabel: 'MOLDURAS', price: 150, presentation: '600ml', description: 'Abrillantador cerámico resistente a altas temperaturas y agua. Hasta 1 mes en molduras.' },
+    { sku: 'A1A-022', name: 'BLACK AGAIN', category: 'molduras', categoryLabel: 'MOLDURAS', price: 190, presentation: '600ml', description: 'Pigmentador de molduras base agua con acabado mate y duración de hasta 9 meses.' },
+    { sku: 'A1A-023', name: 'NICE AIR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 110, presentation: 'Spray', description: 'Aromatizante sprayable que no mancha y ofrece 30 aplicaciones.' },
+    { sku: 'A1A-024', name: 'PINGÜINATOR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 190, presentation: '250ml', description: 'Eliminador de olores a base de enzimas con alrededor de 30 aplicaciones.' },
+    { sku: 'A1A-025', name: 'NICE AIR LATA', category: 'especiales', categoryLabel: 'ESPECIALES', price: 130, presentation: '100g', description: 'Aromatizante en lata de larga duración, hasta 30 días.' },
+    { sku: 'A1A-026', name: 'SAR', category: 'especiales', categoryLabel: 'ESPECIALES', price: 150, presentation: '350g', description: 'Descontaminante de cristales PH neutro para eliminar marcas de lluvia ácida.' },
+    { sku: 'A1A-027', name: 'CLEAN GLASS', category: 'especiales', categoryLabel: 'ESPECIALES', price: 140, presentation: '600ml', description: 'Limpiador y sellador de cristales con capa protectora antimarcas de agua.' },
+    { sku: 'A1A-028', name: 'PADS CLEANER', category: 'especiales', categoryLabel: 'ESPECIALES', price: 150, presentation: '600ml', description: 'Preparador de superficies precerámico, limpia pads y elimina pegamento.' },
+    { sku: 'A1A-029', name: 'MOON LIGHT', category: 'especiales', categoryLabel: 'ESPECIALES', price: 190, presentation: '600ml', description: 'Sellador de WRAP y PPF con protección solar, repelencia al agua y tono satinado.' },
+    { sku: 'A1A-030', name: 'METAL POLISH', category: 'especiales', categoryLabel: 'ESPECIALES', price: 250, presentation: '—', description: 'Pulidor de cromo, aluminio y acero con brillo extremo y protección anticorrosión.' }
+  ];
 
-    const serviceCatalog = [
-      { id: 'SRV-001', name: 'Paquete Elite', price: 2200, type: 'service' },
-      { id: 'SRV-002', name: 'Paquete Plus', price: 1900, type: 'service' },
-      { id: 'SRV-003', name: 'Paquete Esencial', price: 250, type: 'service' },
-      { id: 'SRV-004', name: 'Lavado de motor a vapor', price: 500, type: 'service' },
-      { id: 'SRV-005', name: 'Protección de cristales', price: 800, type: 'service' },
-      { id: 'SRV-006', name: 'Pulido de faros', price: 500, type: 'service' },
-      { id: 'SRV-007', name: 'Lavado de asientos', price: 900, type: 'service' },
-      { id: 'SRV-008', name: 'Desinfección de ductos de aire', price: 300, type: 'service' }
-    ];
+  // ── 3. Catálogo de servicios (constante, no DB) ───────────────────
+  const serviceCatalog = [
+    { id: 'SRV-001', name: 'Paquete Elite', price: 2200, type: 'service' },
+    { id: 'SRV-002', name: 'Paquete Plus', price: 1900, type: 'service' },
+    { id: 'SRV-003', name: 'Paquete Esencial', price: 250, type: 'service' },
+    { id: 'SRV-004', name: 'Lavado de motor a vapor', price: 500, type: 'service' },
+    { id: 'SRV-005', name: 'Protección de cristales', price: 800, type: 'service' },
+    { id: 'SRV-006', name: 'Pulido de faros', price: 500, type: 'service' },
+    { id: 'SRV-007', name: 'Lavado de asientos', price: 900, type: 'service' },
+    { id: 'SRV-008', name: 'Desinfección de ductos de aire', price: 300, type: 'service' }
+  ];
 
-    // Precio final = base × terminal(3.6%) × IVA(16%) — siempre ambos
-    const TERMINAL_RATE = 1.036;
-    const IVA_RATE      = 1.16;
-    function finalPrice(base) { return Math.round(Number(base) * TERMINAL_RATE * IVA_RATE); }
-
-    function formatCurrency(value) {
-      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
-    }
-
-    // saveData/loadData eliminados — datos en PostgreSQL vía API
-
-    // Inventario público: usar baseCatalog local para renderizado inmediato
-    // Los datos en vivo se cargan desde la API en el segundo script (panel admin)
-    function syncInventory() {
-      return baseCatalog.map(item => ({ ...item, stock: 10, type: 'product' }));
-    }
-
-    let inventory = syncInventory();
-    let sales = [];
-    let cart = [];
-    let currentFilter = 'todos';
-    let lastSale = null;
-
-    // Cargar inventario real desde la API para mostrar precios/stock actualizados
-    (async () => {
+  // ── 4. API client ─────────────────────────────────────────────────
+  let apiToken = null;
+  let apiUser = null;
+  const api = {
+    async request(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
       try {
-        const resp = await fetch(`${API_BASE}/inventory`, {
-          headers: apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {}
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (Array.isArray(data) && data.length > 0) {
-            inventory = data.map(p => ({
-              sku: p.sku, name: p.name, category: p.category,
-              categoryLabel: p.category_label || p.category,
-              price: Number(p.price), stock: p.stock,
-              presentation: p.presentation, description: p.description || '',
-              image_url: p.image_url || '', type: 'product'
-            }));
-            renderPublicProducts(currentFilter);
-            renderPosCatalog();
-            renderInventory();
-          }
+        const resp = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        if (resp.status === 401) {
+          apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt');
+          throw new Error('Sesión expirada');
         }
-      } catch(e) { /* usar baseCatalog */ }
-    })();
-
-    function categoryIcon(category) {
-      const icons = {
-        'interiores': '<path d="M5 19V9l7-4 7 4v10"></path><path d="M9 19v-5h6v5"></path>',
-        'rines-y-llantas': '<circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2.5"></circle><path d="M12 5v3M19 12h-3M12 19v-3M5 12h3"></path>',
-        'shampoos': '<path d="M9 3h6"></path><path d="M10 3v4l-3 5a5 5 0 0 0 4.4 7h1.2A5 5 0 0 0 17 12l-3-5V3"></path>',
-        'ceramica': '<path d="M12 3 4 8v4c0 4.6 2.8 7.8 8 9 5.2-1.2 8-4.4 8-9V8l-8-5Z"></path>',
-        'ceras': '<path d="M6 14c0-4 3.1-7 6-10 2.9 3 6 6 6 10a6 6 0 1 1-12 0Z"></path>',
-        'molduras': '<rect x="4" y="6" width="16" height="12" rx="2"></rect><path d="M8 10h8M8 14h5"></path>',
-        'especiales': '<path d="M12 3v18M3 12h18"></path><circle cx="12" cy="12" r="8"></circle>'
-      };
-      return icons[category] || icons.especiales;
-    }
-
-    function productMessage(product) {
-      return `${WHATSAPP_BASE}?text=${encodeURIComponent(`Hola DetailingHouse! Me interesa el producto ${product.name} ($${finalPrice(product.price)}). ¿Tienen disponibilidad?`)}`;
-    }
-
-    function renderPublicProducts(filter) {
-      currentFilter = filter || currentFilter;
-      const source = inventory.slice();
-      const filtered = currentFilter === 'todos' ? source : source.filter(item => item.category === currentFilter);
-      const grid = document.getElementById('publicProducts');
-      if (!grid) return;
-      grid.innerHTML = filtered.map(product => `
-        <article class="product-card">
-          <div class="product-top">
-            <div class="product-icon-wrap">
-              <svg class="product-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">${categoryIcon(product.category)}</svg>
-            </div>
-            <span class="sku-badge">${product.sku}</span>
-          </div>
-          <div class="product-meta">
-            <span class="category-badge ${product.category}">${product.categoryLabel}</span>
-            <span class="product-presentation">${product.presentation}</span>
-          </div>
-          <h3>${product.name}</h3>
-          <div class="price">${formatCurrency(finalPrice(product.price))}</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:-0.3rem;margin-bottom:0.4rem">Precio con IVA y comisión incluidos</div>
-          <p class="product-desc">${product.description}</p>
-          <a class="btn btn-primary" href="${productMessage(product)}" target="_blank" rel="noopener">Pedir por WhatsApp</a>
-        </article>
-      `).join('') || '<div class="empty-state">No hay productos en esta categoría por ahora.</div>';
-
-      document.querySelectorAll('.filter-tab').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.category === currentFilter);
-      });
-    }
-
-    function getTotals() {
-      // Los precios ya llevan terminal 3.6% + IVA 16% aplicados en finalPrice()
-      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-      const paymentMethod = document.getElementById('paymentMethod')?.value || 'Efectivo';
-      return { subtotal, fee: 0, total: subtotal, paymentMethod, feeRate: 0 };
-    }
-
-    function renderCart() {
-      const cartItems = document.getElementById('cartItems');
-      if (cartItems) {
-        cartItems.innerHTML = ''; // legacy anchor kept silent (carrito flotante toma el control)
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        const text = await resp.text();
+        return text ? JSON.parse(text) : null;
+      } catch (e) {
+        if (e.message === 'Failed to fetch' || e.message === 'NetworkError') {
+          console.warn('[API] Sin conexión, usando datos locales');
+        }
+        throw e;
       }
-      renderFloatingCart();
+    },
+    // Auth
+    async login(username, password) {
+      const data = await this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+      if (data.token) {
+        apiToken = data.token;
+        apiUser  = data.user;
+        localStorage.setItem('dh_jwt', apiToken);
+      }
+      return data;
+    },
+    logout()        { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); },
+    restoreToken()  { const t = localStorage.getItem('dh_jwt'); if (t) apiToken = t; return t; },
+    // Inventory (métodos vivos; los 6 métodos muertos de la auditoría previa
+    // — updatePrice, patchProduct, updateClient, addPoints, getDashboard,
+    // getPayroll — fueron eliminados en FIX-20260710-01)
+    getInventory:  () => api.request('/inventory'),
+    updateStock:   (sku, stock) => api.request(`/inventory/${sku}/stock`, { method: 'PUT',  body: JSON.stringify({ stock }) }),
+    addProduct:    (data)       => api.request('/inventory',           { method: 'POST', body: JSON.stringify(data) }),
+    // Clients
+    getClients:    () => api.request('/clients'),
+    addClient:     (data) => api.request('/clients', { method: 'POST', body: JSON.stringify(data) }),
+    // Sales
+    getSales:      () => api.request('/sales'),
+    registerSale:  (data) => api.request('/sales', { method: 'POST', body: JSON.stringify(data) }),
+    // Appointments
+    getAppointments:    () => api.request('/appointments'),
+    addAppointment:     (data) => api.request('/appointments', { method: 'POST', body: JSON.stringify(data) }),
+    updateAppointment:  (id, data) => api.request(`/appointments/${id}`, { method: 'PUT',    body: JSON.stringify(data) }),
+    deleteAppointment:  (id)       => api.request(`/appointments/${id}`, { method: 'DELETE' }),
+    // Cash
+    getActiveCash: () => api.request('/cash/active'),
+    openCash:      (amount) => api.request('/cash/open',     { method: 'POST', body: JSON.stringify({ initialAmount: amount }) }),
+    addMovement:   (data)   => api.request('/cash/movement', { method: 'POST', body: JSON.stringify(data) }),
+    closeCash:     ()       => api.request('/cash/close',    { method: 'POST' }),
+    generateCut:   (range)  => api.request('/cash/payroll/cut', { method: 'POST', body: JSON.stringify({ range }) }),
+  };
+
+  // ── 5. Estado único (SOT) ─────────────────────────────────────────
+  const state = {
+    inventory:       [],
+    sales:           [],
+    clients:         [],
+    appointments:    [],
+    cashSessions:    [],
+    payrollCuts:     [],
+    cart:            [],     // carrito vivo (SOT única)
+    role:            '',
+    currentMonth:    new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    selectedClientId:'',
+    lastSale:        null,
+    payrollCfg:      { Andres: 35, Erika: 35, Local: 30 }
+  };
+
+  // ── 6. Roles y permisos (ADR-20260710-03) ──────────────────────────
+  const ROLES = { ADMIN: 'admin', STAFF: 'staff' };
+  const ROLE_PERMISSIONS = {
+    [ROLES.ADMIN]: ['pos', 'inventario', 'caja', 'clientes', 'nomina', 'agenda', 'dashboard'],
+    [ROLES.STAFF]: ['pos', 'clientes', 'agenda']
+  };
+
+  // ── 7. Helpers puros ──────────────────────────────────────────────
+  const finalPrice     = base => Math.round(Number(base) * TERMINAL_RATE * IVA_RATE);
+  const formatCurrency = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
+  const todayKey       = (date = new Date()) => new Date(date).toISOString().slice(0, 10);
+  const isToday        = ts => todayKey(ts) === todayKey();
+  const uid            = prefix => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+  const byId           = id => document.getElementById(id);
+  const escapeHtml     = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ── 8. Capa de datos ──────────────────────────────────────────────
+  function mapInventory(inv) {
+    return (inv || []).map(p => ({
+      sku:          p.sku,
+      name:         p.name,
+      category:     p.category,
+      categoryLabel:p.category_label || p.categoryLabel || p.category,
+      price:        Number(p.price),
+      stock:        p.stock,
+      presentation: p.presentation,
+      description:  p.description || '',
+      image_url:    p.image_url || '',
+      type:         'product'
+    }));
+  }
+
+  function getOfflineInventoryFallback() {
+    return OFFLINE_CATALOG_FALLBACK.map(p => ({ ...p, stock: 10, type: 'product' }));
+  }
+
+  async function loadState() {
+    // 1) Inventario (público, siempre)
+    try {
+      const inv = await api.getInventory();
+      if (Array.isArray(inv) && inv.length > 0) {
+        state.inventory = mapInventory(inv);
+      } else {
+        state.inventory = getOfflineInventoryFallback();
+      }
+    } catch (e) {
+      console.warn('[API] Inventario no disponible, usando fallback offline:', e.message);
+      state.inventory = getOfflineInventoryFallback();
     }
 
-    function renderServicesStrip() {
-      const wrap = document.getElementById('posServicesGrid');
-      if (!wrap) return;
-      const tiles = serviceCatalog.map(item => {
-        const emoji = item.id === 'SRV-001' ? '🚗' :
-                     item.id === 'SRV-002' ? '✨' :
-                     item.id === 'SRV-003' ? '🧼' :
-                     item.id === 'SRV-004' ? '⚙️' :
-                     item.id === 'SRV-005' ? '🛡️' :
-                     item.id === 'SRV-006' ? '💡' :
-                     item.id === 'SRV-007' ? '💺' :
-                     item.id === 'SRV-008' ? '🌬️' : '⭐';
-        const isMain = ['SRV-001','SRV-002','SRV-003'].includes(item.id);
+    // 2) Datos privados (solo si hay sesión)
+    if (!state.role) return;
+    try {
+      const [cli, sls, appts] = await Promise.all([
+        api.getClients().catch(() => []),
+        api.getSales().catch(() => []),
+        api.getAppointments().catch(() => [])
+      ]);
+      state.clients = (cli || []).map(c => ({
+        id: c.id, name: c.name, phone: c.phone || '',
+        carType: c.car_type || c.carType || '', notes: c.notes || '',
+        points: c.points || 0
+      }));
+      state.sales = (sls || []).map(s => ({
+        id: s.id,
+        timestamp: s.created_at || s.timestamp,
+        items: (s.items || []).map(i => ({
+          name: i.name, sku: i.sku, price: Number(i.price), qty: i.qty,
+          type: i.sku ? 'product' : 'service', key: i.sku || i.name
+        })),
+        subtotal: Number(s.subtotal), fee: Number(s.fee), total: Number(s.total),
+        paymentMethod: s.payment_method || s.paymentMethod || 'efectivo',
+        feeRate: Number(s.fee_rate || 0),
+        clientId: s.client_id || '', clientName: s.client_name || ''
+      }));
+      state.appointments = (appts || []).map(a => ({
+        id: a.id, client: a.client, service: a.service,
+        date: a.date, time: a.time, address: a.address || '',
+        notes: a.notes || '', status: a.status || 'pendiente'
+      }));
+      state.lastSale = state.sales[0] || null;
+    } catch (e) {
+      console.warn('[API] Error cargando datos privados:', e.message);
+    }
+
+    // 3) Caja activa
+    try {
+      const cash = await api.getActiveCash();
+      if (cash && cash.id) {
+        state.cashSessions = [{
+          id: cash.id,
+          openedAt: cash.opened_at,
+          initialAmount: Number(cash.initial_amount),
+          incomes: (cash.incomes || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+          expenses: (cash.expenses || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
+          closed: false, closedAt: ''
+        }];
+      }
+    } catch (e) { /* sin caja activa o sin sesión */ }
+  }
+
+  // ── 9. Render público ─────────────────────────────────────────────
+  function categoryIcon(category) {
+    const icons = {
+      'interiores':     '<path d="M5 19V9l7-4 7 4v10"></path><path d="M9 19v-5h6v5"></path>',
+      'rines-y-llantas':'<circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2.5"></circle><path d="M12 5v3M19 12h-3M12 19v-3M5 12h3"></path>',
+      'shampoos':       '<path d="M9 3h6"></path><path d="M10 3v4l-3 5a5 5 0 0 0 4.4 7h1.2A5 5 0 0 0 17 12l-3-5V3"></path>',
+      'ceramica':       '<path d="M12 3 4 8v4c0 4.6 2.8 7.8 8 9 5.2-1.2 8-4.4 8-9V8l-8-5Z"></path>',
+      'ceras':          '<path d="M6 14c0-4 3.1-7 6-10 2.9 3 6 6 6 10a6 6 0 1 1-12 0Z"></path>',
+      'molduras':       '<rect x="4" y="6" width="16" height="12" rx="2"></rect><path d="M8 10h8M8 14h5"></path>',
+      'especiales':     '<path d="M12 3v18M3 12h18"></path><circle cx="12" cy="12" r="8"></circle>'
+    };
+    return icons[category] || icons.especiales;
+  }
+
+  function productMessage(product) {
+    return `${WHATSAPP_BASE}?text=${encodeURIComponent(`Hola DetailingHouse! Me interesa el producto ${product.name} ($${finalPrice(product.price)}). ¿Tienen disponibilidad?`)}`;
+  }
+
+  function renderPublicProducts(filter) {
+    if (filter) state.currentPublicFilter = filter;
+    const current = state.currentPublicFilter || 'todos';
+    const source = state.inventory.slice();
+    const filtered = current === 'todos' ? source : source.filter(item => item.category === current);
+    const grid = byId('publicProducts');
+    if (!grid) return;
+    grid.innerHTML = filtered.map(product => `
+      <article class="product-card">
+        <div class="product-top">
+          <div class="product-icon-wrap">
+            <svg class="product-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">${categoryIcon(product.category)}</svg>
+          </div>
+          <span class="sku-badge">${product.sku}</span>
+        </div>
+        <div class="product-meta">
+          <span class="category-badge ${product.category}">${product.categoryLabel}</span>
+          <span class="product-presentation">${product.presentation}</span>
+        </div>
+        <h3>${product.name}</h3>
+        <div class="price">${formatCurrency(finalPrice(product.price))}</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:-0.3rem;margin-bottom:0.4rem">Precio con IVA y comisión incluidos</div>
+        <p class="product-desc">${product.description}</p>
+        <a class="btn btn-primary" href="${productMessage(product)}" target="_blank" rel="noopener">Pedir por WhatsApp</a>
+      </article>
+    `).join('') || '<div class="empty-state">No hay productos en esta categoría por ahora.</div>';
+
+    document.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.category === current);
+    });
+  }
+
+  function currentTotals() {
+    // Precios ya llevan terminal 3.6% + IVA 16% aplicados vía finalPrice()
+    const subtotal = state.cart.reduce((sum, item) => sum + (Number(item.qty) || 1) * (Number(item.price) || 0), 0);
+    const method   = byId('paymentMethod')?.value || 'Efectivo';
+    return { subtotal, fee: 0, total: subtotal, method, feeRate: 0 };
+  }
+
+  function renderFloatingCart() {
+    const toggle  = byId('posCartToggle');
+    const badge   = byId('posCartCount');
+    const grandEl = byId('posCartGrandToggle');
+    if (!toggle) return;
+    const totals = currentTotals();
+    const count  = state.cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+    if (badge)   badge.textContent = String(count);
+    if (grandEl) grandEl.textContent = formatCurrency(totals.total);
+
+    const list = byId('pcList');
+    if (!list) return;
+    if (!state.cart.length) {
+      list.innerHTML = '<div class="pc-empty">Aún no has añadido productos.<br/>Toca una tarjeta del catálogo o un servicio rápido.</div>';
+    } else {
+      list.innerHTML = state.cart.map((item, index) => {
+        const thumb = item.type === 'product' ? '📦' : (item.id === 'SRV-001' ? '🚗' : item.id === 'SRV-002' ? '✨' : '🧼');
+        const meta  = item.type === 'product' ? `${item.sku || ''} · ${item.presentation || ''}`.trim() : `Servicio ${item.id || ''}`;
         return `
-          <button type="button" class="svc-tile${isMain ? '' : ' is-secondary'}" data-strip-svc="${item.id}" aria-label="${item.name}">
-            <span class="svc-emoji">${emoji}</span>
-            <span class="svc-name">${item.name}</span>
-            <span class="svc-price">${formatCurrency(finalPrice(item.price))}</span>
-            <span class="svc-tag">${isMain ? 'Principal' : 'Secundario'}</span>
-          </button>
+          <article class="pc-item">
+            <div class="row1">
+              <div style="display:flex;gap:0.6rem;align-items:flex-start;flex:1 1 auto">
+                <div class="thumb">${thumb}</div>
+                <div>
+                  <div class="name">${escapeHtml(item.name)}</div>
+                  <div class="meta">${escapeHtml(meta)}</div>
+                </div>
+              </div>
+              <button class="pc-remove" type="button" data-cart-remove="${index}" aria-label="Quitar">Quitar</button>
+            </div>
+            <div class="row2">
+              <div class="pc-qty" role="group" aria-label="Cantidad">
+                <button type="button" data-cart-dec="${index}" aria-label="Restar">−</button>
+                <input type="number" min="1" value="${Number(item.qty) || 1}" data-cart-qty="${index}" aria-label="Cantidad" />
+                <button type="button" data-cart-inc="${index}" aria-label="Sumar">+</button>
+              </div>
+              <input class="pc-price-input" type="number" min="0" step="1" value="${Math.round(item.price)}" data-cart-price="${index}" aria-label="Precio unitario" title="Modifica el precio para esta venta" />
+              <div class="subtotal">${formatCurrency(item.price * (Number(item.qty) || 1))}</div>
+            </div>
+          </article>
         `;
       }).join('');
-      wrap.innerHTML = tiles;
     }
 
-    function renderFloatingCart() {
-      // Toggle (botón siempre visible)
-      const toggle = document.getElementById('posCartToggle');
-      const badge = document.getElementById('posCartCount');
-      const grandEl = document.getElementById('posCartGrandToggle');
-      if (!toggle) return;
-      const totals = getTotals();
-      const count = cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-      if (badge) badge.textContent = String(count);
-      if (grandEl) grandEl.textContent = formatCurrency(totals.total);
-
-      // Drawer
-      const list = document.getElementById('pcList');
-      if (!list) return;
-      if (!cart.length) {
-        list.innerHTML = '<div class="pc-empty">Aún no has añadido productos.<br/>Toca una tarjeta del catálogo o un servicio rápido.</div>';
-      } else {
-        list.innerHTML = cart.map((item, index) => {
-          const thumb = item.type === 'product' ? '📦' : (item.id === 'SRV-001' ? '🚗' : item.id === 'SRV-002' ? '✨' : '🧼');
-          const meta = item.type === 'product' ? `${item.sku || ''} · ${item.presentation || ''}`.trim() : `Servicio ${item.id || ''}`;
-          return `
-            <article class="pc-item">
-              <div class="row1">
-                <div style="display:flex;gap:0.6rem;align-items:flex-start;flex:1 1 auto">
-                  <div class="thumb">${thumb}</div>
-                  <div>
-                    <div class="name">${escapeHtml(item.name)}</div>
-                    <div class="meta">${escapeHtml(meta)}</div>
-                  </div>
-                </div>
-                <button class="pc-remove" type="button" data-cart-remove="${index}" aria-label="Quitar">Quitar</button>
-              </div>
-              <div class="row2">
-                <div class="pc-qty" role="group" aria-label="Cantidad">
-                  <button type="button" data-cart-dec="${index}" aria-label="Restar">−</button>
-                  <input type="number" min="1" value="${Number(item.qty) || 1}" data-cart-qty="${index}" aria-label="Cantidad" />
-                  <button type="button" data-cart-inc="${index}" aria-label="Sumar">+</button>
-                </div>
-                <input class="pc-price-input" type="number" min="0" step="1" value="${Math.round(item.price)}" data-cart-price="${index}" aria-label="Precio unitario" title="Modifica el precio para esta venta" />
-                <div class="subtotal">${formatCurrency(item.price * (Number(item.qty) || 1))}</div>
-              </div>
-            </article>
-          `;
-        }).join('');
-      }
-
-      const foot = document.getElementById('pcFoot');
-      if (foot) {
-        foot.querySelector('[data-pc-itemcount]').textContent = String(count);
-        foot.querySelector('[data-pc-subtotal]').textContent = formatCurrency(totals.subtotal);
-        foot.querySelector('[data-pc-grand]').textContent = formatCurrency(totals.total);
-      }
+    const foot = byId('pcFoot');
+    if (foot) {
+      foot.querySelector('[data-pc-itemcount]').textContent = String(count);
+      foot.querySelector('[data-pc-subtotal]').textContent = formatCurrency(totals.subtotal);
+      foot.querySelector('[data-pc-grand]').textContent    = formatCurrency(totals.total);
     }
+  }
 
-    function escapeHtml(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-    }
+  function renderCart() { renderFloatingCart(); }
 
-    function toggleFloatingCart(force) {
-      const drawer = document.getElementById('posCartDrawer');
-      if (!drawer) return;
-      const open = typeof force === 'boolean' ? force : !drawer.classList.contains('open');
-      drawer.classList.toggle('open', open);
-      if (open) renderFloatingCart();
-    }
+  function renderServicesStrip() {
+    const wrap = byId('posServicesGrid');
+    if (!wrap) return;
+    const tiles = serviceCatalog.map(item => {
+      const emoji = item.id === 'SRV-001' ? '🚗' :
+                    item.id === 'SRV-002' ? '✨' :
+                    item.id === 'SRV-003' ? '🧼' :
+                    item.id === 'SRV-004' ? '⚙️' :
+                    item.id === 'SRV-005' ? '🛡️' :
+                    item.id === 'SRV-006' ? '💡' :
+                    item.id === 'SRV-007' ? '💺' :
+                    item.id === 'SRV-008' ? '🌬️' : '⭐';
+      const isMain = ['SRV-001','SRV-002','SRV-003'].includes(item.id);
+      return `
+        <button type="button" class="svc-tile${isMain ? '' : ' is-secondary'}" data-strip-svc="${item.id}" aria-label="${item.name}">
+          <span class="svc-emoji">${emoji}</span>
+          <span class="svc-name">${item.name}</span>
+          <span class="svc-price">${formatCurrency(finalPrice(item.price))}</span>
+          <span class="svc-tag">${isMain ? 'Principal' : 'Secundario'}</span>
+        </button>
+      `;
+    }).join('');
+    wrap.innerHTML = tiles;
+  }
 
-    function bindFloatingCartHandlers() {
-      // Toggle + cerrar drawer
-      document.getElementById('posCartToggle')?.addEventListener('click', () => toggleFloatingCart());
-      document.getElementById('pcClose')?.addEventListener('click', () => toggleFloatingCart(false));
-      // Click en cualquier producto abre el carrito (auto-feedback al usuario)
-      document.getElementById('posCatalog')?.addEventListener('click', event => {
-        if (event.target.closest('[data-add-product]') || event.target.closest('[data-add-service]')) {
-          // Abre el drawer un instante después de agregar
-          setTimeout(() => toggleFloatingCart(true), 60);
-        }
+  function toggleFloatingCart(force) {
+    const drawer = byId('posCartDrawer');
+    if (!drawer) return;
+    const open = typeof force === 'boolean' ? force : !drawer.classList.contains('open');
+    drawer.classList.toggle('open', open);
+    if (open) renderFloatingCart();
+  }
+
+  function bindPublicInteractions() {
+    // Acordeón FAQ
+    document.querySelectorAll('.accordion-trigger').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = btn.nextElementSibling;
+        const open  = panel.style.maxHeight;
+        document.querySelectorAll('.accordion-panel').forEach(p => { p.style.maxHeight = null; p.previousElementSibling.lastElementChild.textContent = '+'; });
+        if (!open) { panel.style.maxHeight = `${panel.scrollHeight}px`; btn.lastElementChild.textContent = '−'; }
       });
-      // Click en servicios rápidos del strip
-      document.getElementById('posServicesGrid')?.addEventListener('click', event => {
-        const tile = event.target.closest('[data-strip-svc]');
-        if (!tile) return;
-        const id = tile.dataset.stripSvc;
-        const service = serviceCatalog.find(item => item.id === id);
-        if (!service) return;
-        addItemToCart({
-          key: service.id,
-          name: service.name,
-          price: finalPrice(service.price),
-          type: 'service',
-          sku: service.id,
-          id: service.id
-        }, 1);
-        toggleFloatingCart(true);
+    });
+    // Contadores animados (hero KPIs)
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target; const target = Number(el.dataset.target || 0); let value = 0;
+        const step  = Math.max(1, Math.ceil(target / 40));
+        const timer = setInterval(() => { value += step; if (value >= target) { value = target; clearInterval(timer); } el.textContent = value; }, 25);
+        observer.unobserve(el);
       });
-      // Delegado para qty ±, eliminar, precio editable
-      const drawer = document.getElementById('posCartDrawer');
-      if (!drawer) return;
+    }, { threshold: 0.45 });
+    document.querySelectorAll('.counter-value').forEach(el => observer.observe(el));
+    // Filtros de productos públicos
+    byId('productFilters')?.addEventListener('click', e => {
+      const btn = e.target.closest('.filter-tab');
+      if (!btn) return;
+      document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+      btn.classList.add('active');
+      renderPublicProducts(btn.dataset.category);
+    });
+    // Carrito flotante (drawer)
+    byId('posCartToggle')?.addEventListener('click', () => toggleFloatingCart());
+    byId('pcClose')?.addEventListener('click', () => toggleFloatingCart(false));
+    byId('posCatalog')?.addEventListener('click', event => {
+      if (event.target.closest('[data-add-product]') || event.target.closest('[data-add-service]')) {
+        setTimeout(() => toggleFloatingCart(true), 60);
+      }
+    });
+    byId('posServicesGrid')?.addEventListener('click', event => {
+      const tile = event.target.closest('[data-strip-svc]');
+      if (!tile) return;
+      const id = tile.dataset.stripSvc;
+      const service = serviceCatalog.find(item => item.id === id);
+      if (!service) return;
+      addItemToCart({
+        key: service.id, name: service.name,
+        price: finalPrice(service.price), type: 'service',
+        sku: service.id, id: service.id
+      }, 1);
+      toggleFloatingCart(true);
+    });
+    const drawer = byId('posCartDrawer');
+    if (drawer) {
       drawer.addEventListener('click', event => {
         const remove = event.target.closest('[data-cart-remove]');
         if (remove) {
           const idx = Number(remove.dataset.cartRemove);
-          if (!isNaN(idx)) cart.splice(idx, 1);
-          renderFloatingCart();
+          if (!isNaN(idx)) { state.cart.splice(idx, 1); renderFloatingCart(); }
           return;
         }
         const inc = event.target.closest('[data-cart-inc]');
         const dec = event.target.closest('[data-cart-dec]');
         if (inc || dec) {
           const idx = Number((inc || dec).dataset[inc ? 'cartInc' : 'cartDec']);
-          if (!isNaN(idx) && cart[idx]) {
+          if (!isNaN(idx) && state.cart[idx]) {
             const delta = inc ? 1 : -1;
-            cart[idx].qty = Math.max(1, (Number(cart[idx].qty) || 1) + delta);
+            state.cart[idx].qty = Math.max(1, (Number(state.cart[idx].qty) || 1) + delta);
             renderFloatingCart();
           }
         }
@@ -4239,1094 +4338,718 @@
         if (qty) {
           const idx = Number(qty.dataset.cartQty);
           const val = Math.max(1, Number(qty.value) || 1);
-          if (cart[idx]) {
-            cart[idx].qty = val;
-            renderFloatingCart();
-          }
+          if (state.cart[idx]) { state.cart[idx].qty = val; renderFloatingCart(); }
           return;
         }
         const price = event.target.closest('[data-cart-price]');
         if (price) {
           const idx = Number(price.dataset.cartPrice);
           const val = Math.max(0, Math.round(Number(price.value) || 0));
-          if (cart[idx]) {
-            cart[idx].price = val;
-            renderFloatingCart();
-          }
+          if (state.cart[idx]) { state.cart[idx].price = val; renderFloatingCart(); }
         }
       });
     }
-
-    function renderPosCatalog() {
-      const el = document.getElementById('posCatalog');
-      if (!el) return;
-      const query = (window.posCatalogState?.query || '').trim().toLowerCase();
-      const cat = window.posCatalogState?.cat || 'todos';
-
-      // Categoría afecta sólo a productos; servicios siempre se muestran (filtrados por texto)
-      const matchedProducts = (cat === 'servicios'
-        ? []
-        : inventory.filter(item => {
-            const matchesCat = cat === 'todos' || item.category === cat;
-            if (!matchesCat) return false;
-            if (!query) return true;
-            const haystack = `${item.name || ''} ${item.sku || ''} ${item.categoryLabel || ''} ${item.description || ''}`.toLowerCase();
-            return haystack.includes(query);
-          })
-      );
-      const matchedServices = serviceCatalog.filter(item => {
-        if (!query) return true;
-        const haystack = `${item.name || ''} ${item.id || ''}`.toLowerCase();
-        return haystack.includes(query);
-      });
-
-      const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-
-      const serviceHtml = matchedServices.map(item => `
-        <article class="catalog-item is-service" data-key="svc:${item.id}">
-          <div class="top">
-            <div>
-              <div class="badge-row"><span class="item-tag svc">Servicio</span></div>
-              <h4>${escapeHtml(item.name)}</h4>
-              <p class="item-desc">Detalle de auto detailing · ID ${escapeHtml(item.id)}</p>
-            </div>
-            <div class="price-block">
-              <small>Precio final</small>
-              <strong>${formatCurrency(finalPrice(item.price))}</strong>
-            </div>
-          </div>
-          <div class="controls">
-            <input class="qty-input" type="number" min="1" value="1" data-qty-for="${escapeHtml(item.id)}" aria-label="Cantidad" />
-            <button class="btn-small" type="button" data-add-service="${escapeHtml(item.id)}">+ Añadir</button>
-          </div>
-        </article>
-      `).join('');
-
-      const productHtml = matchedProducts.map(item => {
-        const outOfStock = (Number(item.stock) || 0) <= 0;
-        const stockTag = outOfStock
-          ? `<span class="item-tag stk-low">Sin stock</span>`
-          : `<span class="item-tag stk-ok">Stock ${item.stock}</span>`;
-        return `
-        <article class="catalog-item${outOfStock ? ' is-out' : ''}" data-key="prd:${escapeHtml(item.sku)}">
-          <div class="top">
-            <div>
-              <div class="badge-row">${stockTag}<span class="item-tag">${escapeHtml(item.categoryLabel || item.category || 'Producto')}</span></div>
-              <h4>${escapeHtml(item.name)}</h4>
-              <p class="item-desc">${escapeHtml((item.description || '').slice(0, 110))}${(item.description || '').length > 110 ? '…' : ''}</p>
-            </div>
-            <div class="price-block">
-              <small>${escapeHtml(item.presentation || '')}</small>
-              <strong>${formatCurrency(finalPrice(item.price))}</strong>
-            </div>
-          </div>
-          <div class="controls">
-            <input class="qty-input" type="number" min="1" value="1" max="${item.stock || 1}" data-qty-for="${escapeHtml(item.sku)}" aria-label="Cantidad" ${outOfStock ? 'disabled' : ''} />
-            <button class="btn-small" type="button" data-add-product="${escapeHtml(item.sku)}" ${outOfStock ? 'disabled' : ''}>${outOfStock ? 'Agotado' : '+ Añadir'}</button>
-          </div>
-        </article>
-      `;
-      }).join('');
-
-      const countProducts = matchedProducts.length;
-      const countServices = matchedServices.length;
-      const totalShown = countProducts + countServices;
-
-      const emptyServices = !countServices ? `
-        <div class="catalog-empty"><strong>Sin coincidencias en servicios</strong>Prueba con otra palabra (ej. “plus”, “elite”, “motor”).</div>
-      ` : '';
-      const emptyProducts = !countProducts ? `
-        <div class="catalog-empty"><strong>Sin productos para esta búsqueda</strong>Cambia la categoría o limpia el buscador.</div>
-      ` : '';
-
-      el.innerHTML = `
-        <h4 class="catalog-section-title">Productos A1A <span class="count-pill">${countProducts}</span></h4>
-        ${countProducts ? `<div class="pos-products-grid">${productHtml}</div>` : emptyProducts}
-      `;
-
-      // Reflejar contadores en la barra superior (sólo productos en el catálogo)
-      const countEl = document.getElementById('posSearchCount');
-      const hintEl = document.getElementById('posSearchHint');
-      if (countEl) countEl.textContent = countProducts;
-      if (hintEl) {
-        if (!query && cat === 'todos') hintEl.textContent = 'escribe para filtrar productos';
-        else if (query) hintEl.textContent = `filtrando por “${query}”`;
-        else if (cat !== 'todos') hintEl.textContent = `categoría: ${cat}`;
-      }
-    }
-
-    function renderInventory() {
-      const summary = document.getElementById('inventorySummary');
-      const body = document.getElementById('inventoryBody');
-      if (!summary || !body) return;
-      const totalUnits = inventory.reduce((sum, item) => sum + item.stock, 0);
-      const lowStock = inventory.filter(item => item.stock < 3).length;
-      summary.innerHTML = `
-        <div class="summary-box"><span>Total SKUs</span><strong>${inventory.length}</strong></div>
-        <div class="summary-box"><span>Unidades totales</span><strong>${totalUnits}</strong></div>
-        <div class="summary-box"><span>Stock bajo</span><strong>${lowStock}</strong></div>
-      `;
-      body.innerHTML = inventory.map(item => {
-        const state = item.stock < 3 ? ['low', 'Bajo'] : item.stock <= 5 ? ['mid', 'Medio'] : ['ok', 'Correcto'];
-        return `
-          <tr>
-            <td>${item.sku}</td>
-            <td>${item.name}</td>
-            <td>${formatCurrency(finalPrice(item.price))}</td>
-            <td>${item.stock}</td>
-            <td><span class="status ${state[0]}">${state[1]}</span></td>
-            <td><button class="btn-small" type="button" data-edit-stock="${item.sku}">Editar stock</button></td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    function isToday(dateString) {
-      const d = new Date(dateString);
-      const now = new Date();
-      return d.toDateString() === now.toDateString();
-    }
-
-    function updateDashboard() {
-      const todaySales = sales.filter(item => isToday(item.timestamp));
-      const revenue = todaySales.reduce((sum, item) => sum + item.total, 0);
-      const paymentCount = {};
-      const itemCount = {};
-      todaySales.forEach(sale => {
-        paymentCount[sale.paymentMethod] = (paymentCount[sale.paymentMethod] || 0) + 1;
-        sale.items.forEach(item => {
-          itemCount[item.name] = (itemCount[item.name] || 0) + item.qty;
-        });
-      });
-      const topPayment = Object.entries(paymentCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-      const topItem = Object.entries(itemCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-      document.getElementById('kpiSalesCount').textContent = String(todaySales.length);
-      document.getElementById('kpiRevenue').textContent = formatCurrency(revenue);
-      document.getElementById('kpiPayment').textContent = topPayment;
-      document.getElementById('kpiProduct').textContent = topItem;
-      const recentBody = document.getElementById('recentSalesBody');
-      recentBody.innerHTML = sales.length ? sales.slice(0, 6).map(sale => `
-        <tr>
-          <td>${new Date(sale.timestamp).toLocaleString('es-MX')}</td>
-          <td>${sale.items.map(item => `${item.name} x${item.qty}`).join(', ')}</td>
-          <td>${sale.paymentMethod}</td>
-          <td>${formatCurrency(sale.total)}</td>
-        </tr>
-      `).join('') : '<tr><td colspan="4" class="muted">Aún no hay ventas registradas.</td></tr>';
-    }
-
-    function addItemToCart(item, qty) {
-      const quantity = Math.max(1, Number(qty) || 1);
-      const existing = cart.find(entry => entry.key === item.key);
-      if (existing) {
-        existing.qty += quantity;
-      } else {
-        cart.push({ ...item, qty: quantity });
-      }
-      renderCart();
-      if (typeof renderFloatingCart === 'function') renderFloatingCart();
-    }
-
-    function registerSale() {
-      const errorEl = document.getElementById('posError');
-      const successEl = document.getElementById('posSuccess');
-      errorEl.textContent = '';
-      successEl.textContent = '';
-      if (!cart.length) {
-        errorEl.textContent = 'Añade al menos un producto o servicio al carrito.';
-        return;
-      }
-      for (const item of cart) {
-        if (item.type === 'product') {
-          const stockItem = inventory.find(product => product.sku === item.sku);
-          if (!stockItem || item.qty > stockItem.stock) {
-            errorEl.textContent = `Stock insuficiente para ${item.name}.`;
-            return;
-          }
-        }
-      }
-      inventory = inventory.map(product => {
-        const inCart = cart.find(item => item.type === 'product' && item.sku === product.sku);
-        return inCart ? { ...product, stock: product.stock - inCart.qty } : product;
-      });
-      const totals = getTotals();
-      const sale = {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        items: cart.map(item => ({ ...item })),
-        subtotal: totals.subtotal,
-        fee: totals.fee,
-        total: totals.total,
-        paymentMethod: totals.paymentMethod,
-        feeRate: totals.feeRate
-      };
-      sales.unshift(sale);
-      lastSale = sale;
-      cart.length = 0;
-      successEl.textContent = 'Venta registrada correctamente.';
-      renderPublicProducts(currentFilter);
-      renderPosCatalog();
-      renderInventory();
-      renderCart();
-      if (typeof renderFloatingCart === 'function') renderFloatingCart();
-      if (typeof toggleFloatingCart === 'function') toggleFloatingCart(false);
-      updateDashboard();
-    }
-
-    function buildTicketMessage(sale) {
-      const lines = sale.items.map(item => `• ${item.name} x${item.qty} — ${formatCurrency(item.price * item.qty)}`);
-      const text = [
-        'Hola DetailingHouse!',
-        'Comparto el resumen del ticket:',
-        ...lines,
-        `Método de pago: ${sale.paymentMethod}`,
-        `Total: ${formatCurrency(sale.total)}`
-      ].join('\n');
-      return `${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`;
-    }
-
-    function sendTicket() {
-      const sale = cart.length ? { items: cart, paymentMethod: document.getElementById('paymentMethod').value, total: getTotals().total } : lastSale;
-      if (!sale) {
-        document.getElementById('posError').textContent = 'No hay ticket disponible para enviar todavía.';
-        return;
-      }
-      window.open(buildTicketMessage(sale), '_blank', 'noopener');
-    }
-
-    function setupAdmin() {
-      const overlay = document.getElementById('adminOverlay');
-      const loginBox = document.getElementById('adminLoginBox');
-      const adminPanel = document.getElementById('adminPanelApp');
-      const errorEl = document.getElementById('adminError');
-      const refreshAuth = () => {
-        const isAuthed = !!apiToken;
-        loginBox.style.display = isAuthed ? 'none' : 'block';
-        adminPanel.classList.toggle('active', isAuthed);
-      };
-      document.getElementById('openAdmin')?.addEventListener('click', () => {
-        overlay.classList.add('open');
-        overlay.setAttribute('aria-hidden', 'false');
-        refreshAuth();
-      });
-      document.getElementById('closeAdmin')?.addEventListener('click', () => {
-        overlay.classList.remove('open');
-        overlay.setAttribute('aria-hidden', 'true');
-      });
-      document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
-        const pass = document.getElementById('adminPassword').value.trim();
-        const username = pass === 'DH2025' ? 'admin' : pass === 'DH-STAFF' ? 'staff' : null;
-        if (!username) { errorEl.textContent = 'Contraseña incorrecta.'; return; }
-        try {
-          await api.login(username, pass);
-          errorEl.textContent = '';
-          refreshAuth();
-        } catch(e) { errorEl.textContent = `Error: ${e.message}`; }
-      });
-      document.getElementById('adminLogoutBtn')?.addEventListener('click', () => {
-        api.logout();
-        refreshAuth();
-      });
-      document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.tab-btn[data-tab]').forEach(el => el.classList.remove('active'));
-          document.querySelectorAll('[id^="tab-"]').forEach(panel => panel.classList.remove('active'));
-          btn.classList.add('active');
-          document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
-        });
-      });
-      refreshAuth();
-    }
-
-    document.getElementById('productFilters')?.addEventListener('click', event => {
-      const btn = event.target.closest('.filter-tab');
-      if (!btn) return;
-      renderPublicProducts(btn.dataset.category);
-    });
-
-    document.getElementById('posCatalog')?.addEventListener('click', event => {
-      const serviceId = event.target.dataset.addService;
-      const productSku = event.target.dataset.addProduct;
-      if (serviceId) {
-        const service = serviceCatalog.find(item => item.id === serviceId);
-        const qty = document.querySelector(`[data-qty-for="${serviceId}"]`)?.value || 1;
-        addItemToCart({ key: service.id, name: service.name, price: finalPrice(service.price), type: 'service', sku: service.id }, qty);
-      }
-      if (productSku) {
-        const product = inventory.find(item => item.sku === productSku);
-        const qty = document.querySelector(`[data-qty-for="${productSku}"]`)?.value || 1;
-        addItemToCart({ key: product.sku, name: product.name, price: finalPrice(product.price), type: 'product', sku: product.sku }, qty);
-      }
-    });
-
-    document.getElementById('cartItems')?.addEventListener('click', event => {
-      event.preventDefault();
-    });
-
-    document.getElementById('inventoryBody')?.addEventListener('click', event => {
-      const sku = event.target.dataset.editStock;
-      if (!sku) return;
-      // Legacy v1 silenciado — el handler admin IIFE toma el control con modal visual.
-      return;
-      renderPublicProducts(currentFilter);
-      renderPosCatalog();
-      renderInventory();
-    });
-
-    document.getElementById('addProductBtn')?.addEventListener('click', () => {
-      const sku = document.getElementById('newSku').value.trim();
-      const name = document.getElementById('newName').value.trim();
-      const price = Number(document.getElementById('newPrice').value);
-      const stock = Number(document.getElementById('newStock').value);
-      if (!sku || !name || !price) return;
-      inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente desde el panel admin.', stock: Math.max(0, stock || 0), type: 'product' });
-      ['newSku','newName','newPrice','newStock'].forEach(id => document.getElementById(id).value = '');
-      renderPublicProducts(currentFilter);
-      renderPosCatalog();
-      renderInventory();
-    });
-
-    document.getElementById('registerSaleBtn')?.addEventListener('click', registerSale);
-    document.getElementById('ticketWhatsappBtn')?.addEventListener('click', sendTicket);
-    document.getElementById('paymentMethod')?.addEventListener('change', () => {
-      renderCart();
-      if (typeof renderFloatingCart === 'function') renderFloatingCart();
-    });
-    document.getElementById('terminalFee')?.addEventListener('input', () => {
-      renderCart();
-      if (typeof renderFloatingCart === 'function') renderFloatingCart();
-    });
-
-    // Mantener sincronizado el carrito flotante cuando se abre el panel o se añaden items por API
-    document.getElementById('openAdmin')?.addEventListener('click', () => {
-      setTimeout(() => {
-        renderServicesStrip();
-        renderPosCatalog();
-        renderCart();
-        if (typeof renderFloatingCart === 'function') renderFloatingCart();
-      }, 80);
-    });
-
-    document.getElementById('navToggle')?.addEventListener('click', () => {
-      const menu = document.getElementById('mobileMenu');
+    // Menú móvil
+    byId('navToggle')?.addEventListener('click', () => {
+      const menu = byId('mobileMenu');
       const open = menu.classList.toggle('open');
-      document.getElementById('navToggle').setAttribute('aria-expanded', String(open));
+      byId('navToggle').setAttribute('aria-expanded', String(open));
     });
-    document.querySelectorAll('#mobileMenu a').forEach(link => link.addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('open')));
+    document.querySelectorAll('#mobileMenu a').forEach(link => link.addEventListener('click', () => byId('mobileMenu').classList.remove('open')));
+  }
 
-    renderPublicProducts('todos');
-    renderServicesStrip();
+  // ── 10. UI admin helpers ──────────────────────────────────────────
+  window.dhAdminToast = function(msg, type) {
+    const box = byId('adminToasts');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = 'admin-toast admin-toast-' + (type || 'info');
+    el.textContent = msg;
+    box.appendChild(el);
+    setTimeout(() => el.classList.add('show'), 10);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+  };
+  window.dhAdminModal = function(opts) {
+    const root = byId('adminModals');
+    if (!root) return Promise.resolve(null);
+    const overlay = document.createElement('div');
+    overlay.className = 'admin-modal-overlay';
+    overlay.innerHTML = '<div class="admin-modal"><h3></h3><div class="admin-modal-body"></div><div class="admin-modal-actions"><button class="btn-secondary" data-modal-cancel>Cancelar</button><button class="btn-primary" data-modal-ok>Aceptar</button></div></div>';
+    overlay.querySelector('h3').textContent = opts.title || '';
+    overlay.querySelector('.admin-modal-body').innerHTML = opts.body || '';
+    if (opts.okText) overlay.querySelector('[data-modal-ok]').textContent = opts.okText;
+    root.appendChild(overlay);
+    const input = overlay.querySelector('input[data-modal-input], select[data-modal-input]');
+    if (input) setTimeout(() => input.focus(), 50);
+    return new Promise(resolve => {
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay || e.target.hasAttribute('data-modal-cancel')) { overlay.remove(); resolve(null); }
+        if (e.target.hasAttribute('data-modal-ok')) { const v = input ? input.value : true; overlay.remove(); resolve(v); }
+      });
+    });
+  };
+
+  // ── 11. Render admin ──────────────────────────────────────────────
+  function renderPosClientOptions() {
+    const list = byId('posClientOptions');
+    if (!list) return;
+    list.innerHTML = state.clients.map(c => `<option value="${c.name} — ${c.phone}"></option>`).join('');
+  }
+
+  function getClient(id) { return state.clients.find(c => c.id === id); }
+
+  function getClientVisits(clientId) {
+    return state.sales.filter(s => s.clientId === clientId).length;
+  }
+
+  function renderSelectedClientInfo() {
+    const box = byId('posClientInfo');
+    const client = getClient(state.selectedClientId);
+    if (!box) return;
+    if (!client) {
+      box.textContent = 'Selecciona un cliente para ver sus puntos y elegibilidad de canje.';
+      return;
+    }
+    const visits = getClientVisits(client.id);
+    const reward = client.points >= 50 ? 'Puede canjear 1 lavado Esencial gratis.' : `Le faltan ${50 - client.points} puntos para un lavado Esencial gratis.`;
+    box.innerHTML = `<strong>${client.name}</strong> · ${client.phone}<br>Puntos: <strong>${client.points}</strong> · Visitas: <strong>${visits}</strong><br>${reward}`;
+  }
+
+  function renderPosCatalog() {
+    const el = byId('posCatalog');
+    if (!el) return;
+    const query = (window.posCatalogState?.query || '').trim().toLowerCase();
+    const cat   = window.posCatalogState?.cat   || 'todos';
+
+    const matchedProducts = (cat === 'servicios'
+      ? []
+      : state.inventory.filter(item => {
+          const matchesCat = cat === 'todos' || item.category === cat;
+          if (!matchesCat) return false;
+          if (!query) return true;
+          const haystack = `${item.name || ''} ${item.sku || ''} ${item.categoryLabel || ''} ${item.description || ''}`.toLowerCase();
+          return haystack.includes(query);
+        })
+    );
+    const matchedServices = serviceCatalog.filter(item => {
+      if (!query) return true;
+      const haystack = `${item.name || ''} ${item.id || ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+
+    const serviceHtml = matchedServices.map(item => `
+      <article class="catalog-item is-service" data-key="svc:${item.id}">
+        <div class="top">
+          <div>
+            <div class="badge-row"><span class="item-tag svc">Servicio</span></div>
+            <h4>${escapeHtml(item.name)}</h4>
+            <p class="item-desc">Detalle de auto detailing · ID ${escapeHtml(item.id)}</p>
+          </div>
+          <div class="price-block">
+            <small>Precio final</small>
+            <strong>${formatCurrency(finalPrice(item.price))}</strong>
+          </div>
+        </div>
+        <div class="controls">
+          <input class="qty-input" type="number" min="1" value="1" data-qty-for="${escapeHtml(item.id)}" aria-label="Cantidad" />
+          <button class="btn-small" type="button" data-add-service="${escapeHtml(item.id)}">+ Añadir</button>
+        </div>
+      </article>
+    `).join('');
+
+    const productHtml = matchedProducts.map(item => {
+      const outOfStock = (Number(item.stock) || 0) <= 0;
+      const stockTag = outOfStock
+        ? `<span class="item-tag stk-low">Sin stock</span>`
+        : `<span class="item-tag stk-ok">Stock ${item.stock}</span>`;
+      return `
+      <article class="catalog-item${outOfStock ? ' is-out' : ''}" data-key="prd:${escapeHtml(item.sku)}">
+        <div class="top">
+          <div>
+            <div class="badge-row">${stockTag}<span class="item-tag">${escapeHtml(item.categoryLabel || item.category || 'Producto')}</span></div>
+            <h4>${escapeHtml(item.name)}</h4>
+            <p class="item-desc">${escapeHtml((item.description || '').slice(0, 110))}${(item.description || '').length > 110 ? '…' : ''}</p>
+          </div>
+          <div class="price-block">
+            <small>${escapeHtml(item.presentation || '')}</small>
+            <strong>${formatCurrency(finalPrice(item.price))}</strong>
+          </div>
+        </div>
+        <div class="controls">
+          <input class="qty-input" type="number" min="1" value="1" max="${item.stock || 1}" data-qty-for="${escapeHtml(item.sku)}" aria-label="Cantidad" ${outOfStock ? 'disabled' : ''} />
+          <button class="btn-small" type="button" data-add-product="${escapeHtml(item.sku)}" ${outOfStock ? 'disabled' : ''}>${outOfStock ? 'Agotado' : '+ Añadir'}</button>
+        </div>
+      </article>
+    `;
+    }).join('');
+
+    const countProducts = matchedProducts.length;
+    const countServices = matchedServices.length;
+
+    const emptyServices = !countServices ? `
+      <div class="catalog-empty"><strong>Sin coincidencias en servicios</strong>Prueba con otra palabra (ej. "plus", "elite", "motor").</div>
+    ` : '';
+    const emptyProducts = !countProducts ? `
+      <div class="catalog-empty"><strong>Sin productos para esta búsqueda</strong>Cambia la categoría o limpia el buscador.</div>
+    ` : '';
+
+    el.innerHTML = `
+      <h4 class="catalog-section-title">Productos A1A <span class="count-pill">${countProducts}</span></h4>
+      ${countProducts ? `<div class="pos-products-grid">${productHtml}</div>` : emptyProducts}
+      ${countServices ? `<h4 class="catalog-section-title" style="margin-top:1.1rem">Servicios <span class="count-pill">${countServices}</span></h4><div class="pos-products-grid">${serviceHtml}</div>` : emptyServices}
+    `;
+
+    const countEl = byId('posSearchCount');
+    const hintEl  = byId('posSearchHint');
+    if (countEl) countEl.textContent = countProducts;
+    if (hintEl) {
+      if (!query && cat === 'todos') hintEl.textContent = 'escribe para filtrar productos';
+      else if (query)                hintEl.textContent = `filtrando por "${query}"`;
+      else if (cat !== 'todos')      hintEl.textContent = `categoría: ${cat}`;
+    }
+  }
+
+  function renderInventory() {
+    const summary = byId('inventorySummary');
+    const body    = byId('inventoryBody');
+    if (!summary || !body) return;
+    const totalUnits = state.inventory.reduce((sum, item) => sum + (Number(item.stock) || 0), 0);
+    const lowStock   = state.inventory.filter(item => (Number(item.stock) || 0) < 3).length;
+    summary.innerHTML = `
+      <div class="summary-box"><span>Total SKUs</span><strong>${state.inventory.length}</strong></div>
+      <div class="summary-box"><span>Unidades totales</span><strong>${totalUnits}</strong></div>
+      <div class="summary-box"><span>Stock bajo</span><strong>${lowStock}</strong></div>
+    `;
+    body.innerHTML = state.inventory.map(item => {
+      const stock = Number(item.stock) || 0;
+      const st = stock < 3 ? ['low', 'Bajo'] : stock <= 5 ? ['mid', 'Medio'] : ['ok', 'Correcto'];
+      return `
+        <tr>
+          <td>${item.sku}</td>
+          <td>${item.name}</td>
+          <td>${formatCurrency(finalPrice(item.price))}</td>
+          <td>${stock}</td>
+          <td><span class="status ${st[0]}">${st[1]}</span></td>
+          <td><button class="btn-small" type="button" data-edit-stock="${item.sku}">Editar stock</button></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderClients() {
+    const search   = (byId('clientSearch')?.value || '').toLowerCase();
+    const body     = byId('clientsBody');
+    const filtered = state.clients.filter(c => !search || `${c.name} ${c.phone}`.toLowerCase().includes(search));
+    if (!body) return;
+    body.innerHTML = filtered.length ? filtered.map(client => `<tr><td><strong>${client.name}</strong><br><span class="muted">${client.phone} · ${getClientVisits(client.id)} visitas</span></td><td>${client.carType}</td><td>${client.points}</td><td><div class="client-qr">${qrSvg(client.id)}</div></td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay clientes registrados.</td></tr>';
+    renderPosClientOptions();
+    renderSelectedClientInfo();
+  }
+
+  function activeCash() {
+    return state.cashSessions.find(session => !session.closed) || null;
+  }
+
+  function renderCash() {
+    const session  = activeCash();
+    const summary  = byId('cashSummary');
+    const body     = byId('cashMovementsBody');
+    const incomes  = session ? session.incomes.reduce((a, b) => a + b.amount, 0) : 0;
+    const expenses = session ? session.expenses.reduce((a, b) => a + b.amount, 0) : 0;
+    if (summary) {
+      summary.innerHTML = `<div class="mini-stat"><span>Ingresos</span><strong>${formatCurrency(incomes)}</strong></div><div class="mini-stat"><span>Gastos</span><strong>${formatCurrency(expenses)}</strong></div><div class="mini-stat"><span>Utilidad neta</span><strong>${formatCurrency(incomes - expenses)}</strong></div>`;
+    }
+    if (body) {
+      const rows = session ? [...session.incomes.map(m => ({ ...m, kind: 'Ingreso' })), ...session.expenses.map(m => ({ ...m, kind: 'Gasto' }))].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)) : [];
+      body.innerHTML = rows.length ? rows.map(m => `<tr><td>${new Date(m.timestamp).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</td><td>${m.kind}</td><td>${m.detail}</td><td>${formatCurrency(m.amount)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay caja abierta o movimientos registrados.</td></tr>';
+    }
+  }
+
+  function qrSvg(text) {
+    let seed = [...text].reduce((a, c) => a + c.charCodeAt(0), 17);
+    let cells = '';
+    for (let y = 0; y < 9; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        seed = (seed * 9301 + 49297) % 233280;
+        if (seed / 233280 > 0.5 || (x < 2 && y < 2) || (x > 6 && y < 2) || (x < 2 && y > 6)) {
+          cells += `<rect x="${x * 8}" y="${y * 8}" width="8" height="8" fill="#111827"></rect>`;
+        }
+      }
+    }
+    return `<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
+  }
+
+  function getRangeSales(range) {
+    const now = new Date();
+    return state.sales.filter(sale => {
+      const date = new Date(sale.timestamp);
+      if (range === 'monthly') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      const day = now.getDay();
+      const diff = (day === 0 ? -6 : 1) - day;
+      const monday = new Date(now); monday.setDate(now.getDate() + diff); monday.setHours(0,0,0,0);
+      return date >= monday;
+    });
+  }
+
+  function renderPayroll() {
+    ['Andres','Erika','Local'].forEach(name => {
+      const input = byId(`pct${name}`); if (input) input.value = state.payrollCfg[name];
+    });
+    const range = byId('payrollRange')?.value || 'weekly';
+    const salesRange = getRangeSales(range);
+    const base = salesRange.reduce((sum, sale) => sum + sale.total, 0);
+    const summary = byId('payrollSummary');
+    if (summary) {
+      summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    const body = byId('payrollCutsBody');
+    if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+  }
+
+  function serviceClass(name) {
+    return /elite/i.test(name) ? 'elite' : /plus/i.test(name) ? 'plus' : /esencial/i.test(name) ? 'esencial' : '';
+  }
+
+  function renderAgenda() {
+    const title = byId('calendarTitle');
+    const grid  = byId('calendarGrid');
+    const todayList = byId('todayAppointments');
+    const month = state.currentMonth;
+    if (title) title.textContent = month.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    if (grid) {
+      const firstDay   = new Date(month.getFullYear(), month.getMonth(), 1);
+      const lastDay    = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      const startOffset = (firstDay.getDay() + 6) % 7;
+      const cells = [];
+      for (let i = 0; i < startOffset; i += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), -startOffset + i + 1));
+      for (let d = 1; d <= lastDay.getDate(); d += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
+      while (cells.length % 7 !== 0) cells.push(new Date(month.getFullYear(), month.getMonth() + 1, cells.length - (startOffset + lastDay.getDate()) + 1));
+      grid.innerHTML = cells.map(date => {
+        const key = todayKey(date);
+        const dayAppts = state.appointments.filter(a => a.date === key);
+        const cls = `${date.getMonth() !== month.getMonth() ? 'other' : ''} ${key === todayKey() ? 'today' : ''}`.trim();
+        return `<div class="calendar-day ${cls}"><div class="day-number">${date.getDate()}</div>${dayAppts.map(a => `<button type="button" class="appointment-chip ${serviceClass(a.service)}" data-appt-id="${a.id}">${a.time} · ${a.service}</button>`).join('')}</div>`;
+      }).join('');
+    }
+    if (todayList) {
+      const todays = state.appointments.filter(a => a.date === todayKey());
+      todayList.innerHTML = todays.length ? todays.map(a => `<li><span>${a.time} · ${a.client} · ${a.service}</span><button class="btn-small" type="button" data-appt-id="${a.id}">Ver</button></li>`).join('') : '<li class="muted">No hay citas programadas para hoy.</li>';
+    }
+  }
+
+  function drawChart() {
+    const canvas = byId('salesChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const labels = [];
+    const values = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date(); date.setDate(date.getDate() - i);
+      const key = todayKey(date);
+      labels.push(date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
+      values.push(state.sales.filter(s => todayKey(s.timestamp) === key).reduce((sum, sale) => sum + sale.total, 0));
+    }
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const max = Math.max(...values, 1);
+    const chartHeight = 210; const barWidth = 68; const gap = 34;
+    values.forEach((value, index) => {
+      const x = 50 + index * (barWidth + gap);
+      const height = (value / max) * chartHeight;
+      const y = 235 - height;
+      ctx.fillStyle = 'rgba(220,38,38,0.18)';
+      ctx.fillRect(x, 25, barWidth, chartHeight + 10);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(x, y, barWidth, height);
+      ctx.fillStyle = '#f9fafb';
+      ctx.font = '12px Inter';
+      ctx.fillText(labels[index], x + 12, 265);
+      ctx.fillText(value ? `$${Math.round(value)}` : '$0', x + 10, y - 8);
+    });
+  }
+
+  function renderDashboard() {
+    const todaySales   = state.sales.filter(s => isToday(s.timestamp));
+    const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
+    const openCash     = activeCash();
+    const expenses     = openCash ? openCash.expenses.reduce((sum, e) => sum + e.amount, 0) : 0;
+    const clientsToday = new Set(todaySales.filter(s => s.clientId).map(s => s.clientId)).size;
+    const avg          = todaySales.length ? todayRevenue / todaySales.length : 0;
+    byId('dashSalesToday').textContent   = String(todaySales.length);
+    byId('dashNetToday').textContent     = formatCurrency(todayRevenue - expenses);
+    byId('dashClientsToday').textContent = String(clientsToday);
+    byId('dashAvgTicket').textContent    = formatCurrency(avg);
+    const itemMap = {}; const serviceMap = {}; const productMap = {};
+    state.sales.forEach(sale => sale.items.forEach(item => { itemMap[item.name] = (itemMap[item.name] || 0) + item.qty; if (item.type === 'service') serviceMap[item.name] = (serviceMap[item.name] || 0) + item.qty; else productMap[item.name] = (productMap[item.name] || 0) + item.qty; }));
+    byId('topServicesList').innerHTML = Object.entries(serviceMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
+    byId('topProductsList').innerHTML = Object.entries(productMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
+    const low = state.inventory.filter(item => (Number(item.stock) || 0) < 3);
+    byId('stockAlerts').innerHTML = low.length ? low.map(item => `<span class="alert-pill">${item.name} · ${item.stock} ud.</span>`).join('') : '<span class="muted">Sin alertas activas.</span>';
+    byId('dashboardMetrics').innerHTML = `<div class="mini-stat"><span>Ingresos de caja</span><strong>${formatCurrency(openCash ? openCash.incomes.reduce((s,m)=>s+m.amount,0) : 0)}</strong></div><div class="mini-stat"><span>Gastos de caja</span><strong>${formatCurrency(expenses)}</strong></div><div class="mini-stat"><span>Stock bajo</span><strong>${low.length}</strong></div>`;
+    byId('recentSalesBody').innerHTML = state.sales.length ? state.sales.slice(0, 6).map(sale => `<tr><td>${new Date(sale.timestamp).toLocaleString('es-MX')}</td><td>${sale.items.map(i => `${i.name} x${i.qty}`).join(', ')}</td><td>${sale.paymentMethod}</td><td>${formatCurrency(sale.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Aún no hay ventas registradas.</td></tr>';
+    drawChart();
+  }
+
+  function exportCsv() {
+    const todaySales = state.sales.filter(s => isToday(s.timestamp));
+    const range = byId('payrollRange')?.value || 'weekly';
+    const base  = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+    const lines = ['Ventas del día'];
+    lines.push('fecha,servicio_producto,precio,metodo_pago');
+    todaySales.forEach(sale => sale.items.forEach(item => lines.push(`${sale.timestamp},${item.name.replace(/,/g,' ')},${item.price},${sale.paymentMethod}`)));
+    lines.push('');
+    lines.push('Resumen de nómina');
+    lines.push('socio,porcentaje,ventas_base,monto');
+    Object.entries(state.payrollCfg).forEach(([name,pct]) => lines.push(`${name},${pct},${base},${(base*pct/100).toFixed(2)}`));
+    lines.push('');
+    lines.push('Estado de inventario');
+    lines.push('sku,nombre,precio,stock');
+    state.inventory.forEach(item => lines.push(`${item.sku},${item.name.replace(/,/g,' ')},${item.price},${item.stock}`));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `detailinghouse-reporte-${todayKey()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function updateAll() {
+    renderPublicProducts();
+    renderPosClientOptions();
+    renderSelectedClientInfo();
     renderPosCatalog();
-    renderInventory();
     renderCart();
+    renderInventory();
+    renderClients();
+    renderCash();
+    renderPayroll();
+    renderAgenda();
+    renderDashboard();
+  }
+
+  // ── 12. Handlers admin ────────────────────────────────────────────
+  function addItemToCart(item, qty) {
+    const quantity = Math.max(1, Number(qty) || 1);
+    const existing = state.cart.find(entry => entry.key === item.key);
+    if (existing) existing.qty += quantity;
+    else state.cart.push({ ...item, qty: quantity });
     renderFloatingCart();
-    bindFloatingCartHandlers();
-    updateDashboard();
-    setupAdmin();
-  </script>
-  <script>
-    (() => {
-      // Claves localStorage eliminadas — sesión JWT en dh_jwt, datos en PostgreSQL
-      const state = {
-        inventory: [],
-        sales: [],
-        clients: [],
-        cashSessions: [],
-        appointments: [],
-        payrollCuts: [],
-        payrollCfg: { Andres: 35, Erika: 35, Local: 30 },
-        selectedClientId: '',
-        lastSale: null,
-        role: '',
-        currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      };
+  }
 
-      const byId = id => document.getElementById(id);
-      // read/write eliminados — datos en PostgreSQL vía API
-      // Precio final = base × terminal(3.6%) × IVA(16%)
-      const TERMINAL_RATE = 1.036;
-      const IVA_RATE      = 1.16;
-      const fp = base => Math.round(Number(base) * TERMINAL_RATE * IVA_RATE);
-      const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
-      const todayKey = (date = new Date()) => new Date(date).toISOString().slice(0, 10);
-      const uid = prefix => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
-      const isToday = ts => todayKey(ts) === todayKey();
-      const getClient = id => state.clients.find(c => c.id === id);
-      // === Helpers UI admin: toast + modal ===
-      window.dhAdminToast = function(msg, type) {
-        const box = document.getElementById('adminToasts');
-        if (!box) return;
-        const el = document.createElement('div');
-        el.className = 'admin-toast admin-toast-' + (type || 'info');
-        el.textContent = msg;
-        box.appendChild(el);
-        setTimeout(() => el.classList.add('show'), 10);
-        setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
-      };
-      window.dhAdminModal = function(opts) {
-        const root = document.getElementById('adminModals');
-        if (!root) return Promise.resolve(null);
-        const overlay = document.createElement('div');
-        overlay.className = 'admin-modal-overlay';
-        overlay.innerHTML = '<div class="admin-modal"><h3></h3><div class="admin-modal-body"></div><div class="admin-modal-actions"><button class="btn-secondary" data-modal-cancel>Cancelar</button><button class="btn-primary" data-modal-ok>Aceptar</button></div></div>';
-        overlay.querySelector('h3').textContent = opts.title || '';
-        overlay.querySelector('.admin-modal-body').innerHTML = opts.body || '';
-        if (opts.okText) overlay.querySelector('[data-modal-ok]').textContent = opts.okText;
-        root.appendChild(overlay);
-        const input = overlay.querySelector('input[data-modal-input], select[data-modal-input]');
-        if (input) setTimeout(() => input.focus(), 50);
-        return new Promise(resolve => {
-          overlay.addEventListener('click', e => {
-            if (e.target === overlay || e.target.hasAttribute('data-modal-cancel')) { overlay.remove(); resolve(null); }
-            if (e.target.hasAttribute('data-modal-ok')) { const v = input ? input.value : true; overlay.remove(); resolve(v); }
-          });
-        });
-      };
-
-      const cloneEl = id => {
-        const el = byId(id);
-        if (!el) return null;
-        const clone = el.cloneNode(true);
-        el.replaceWith(clone);
-        return clone;
-      };
-      const serviceClass = name => /elite/i.test(name) ? 'elite' : /plus/i.test(name) ? 'plus' : /esencial/i.test(name) ? 'esencial' : '';
-
-      // Mapeo de inventario desde BD al formato del frontend
-      function mapInventory(inv) {
-        return (inv || []).map(p => ({
-          sku: p.sku, name: p.name, category: p.category,
-          categoryLabel: p.category_label || p.categoryLabel || p.category,
-          price: Number(p.price), stock: p.stock, presentation: p.presentation,
-          description: p.description || '', image_url: p.image_url || '',
-          type: 'product'
-        }));
-      }
-
-      async function loadState() {
-        // ── 1. INVENTARIO (público, siempre) ──────────────────────────────
-        try {
-          const inv = await api.getInventory();
-          if (Array.isArray(inv) && inv.length > 0) {
-            state.inventory = mapInventory(inv);
-          }
-        } catch(e) {
-          console.warn('[API] Inventario no disponible, usando baseCatalog:', e.message);
-          state.inventory = baseCatalog.map(p => ({ ...p, stock: 10, type: 'product' }));
-        }
-
-        // ── 2. DATOS PRIVADOS (solo si hay sesión activa) ─────────────────
-        if (!state.role) return;   // sin login → solo catálogo público
-
-        try {
-          const [cli, sls, appts] = await Promise.all([
-            api.getClients().catch(() => []),
-            api.getSales().catch(() => []),
-            api.getAppointments().catch(() => [])
-          ]);
-
-          state.clients = (cli || []).map(c => ({
-            id: c.id, name: c.name, phone: c.phone || '',
-            carType: c.car_type || c.carType || '', notes: c.notes || '',
-            points: c.points || 0
-          }));
-
-          state.sales = (sls || []).map(s => ({
-            id: s.id, timestamp: s.created_at || s.timestamp,
-            items: (s.items || []).map(i => ({ name: i.name, sku: i.sku, price: Number(i.price), qty: i.qty, type: i.sku ? 'product' : 'service', key: i.sku || i.name })),
-            subtotal: Number(s.subtotal), fee: Number(s.fee), total: Number(s.total),
-            paymentMethod: s.payment_method || s.paymentMethod || 'efectivo',
-            feeRate: Number(s.fee_rate || 0),
-            clientId: s.client_id || '', clientName: s.client_name || ''
-          }));
-
-          state.appointments = (appts || []).map(a => ({
-            id: a.id, client: a.client, service: a.service,
-            date: a.date, time: a.time, address: a.address || '',
-            notes: a.notes || '', status: a.status || 'pendiente'
-          }));
-
-          state.lastSale = state.sales[0] || null;
-        } catch(e) {
-          console.warn('[API] Error cargando datos privados:', e.message);
-        }
-
-        // ── 3. CAJA ACTIVA (solo si hay sesión) ───────────────────────────
-        try {
-          const cash = await api.getActiveCash();
-          if (cash && cash.id) {
-            state.cashSessions = [{
-              id: cash.id, openedAt: cash.opened_at, initialAmount: Number(cash.initial_amount),
-              incomes: (cash.incomes || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
-              expenses: (cash.expenses || []).map(m => ({ id: m.id, detail: m.description, amount: Number(m.amount), timestamp: m.created_at })),
-              closed: false, closedAt: ''
-            }];
-          }
-        } catch(e) { /* sin caja activa o sin sesión */ }
-      }
-
-      // persistAll: las escrituras ahora van a la API individualmente
-      // Esta función solo re-renderiza la UI (los datos ya están en PostgreSQL)
-      function persistAll() {
-        // No-op: los datos se guardan vía API en cada acción
-      }
-
-      function getClientVisits(clientId) {
-        return state.sales.filter(s => s.clientId === clientId).length;
-      }
-
-      function qrSvg(text) {
-        let seed = [...text].reduce((a, c) => a + c.charCodeAt(0), 17);
-        let cells = '';
-        for (let y = 0; y < 9; y += 1) {
-          for (let x = 0; x < 9; x += 1) {
-            seed = (seed * 9301 + 49297) % 233280;
-            if (seed / 233280 > 0.5 || (x < 2 && y < 2) || (x > 6 && y < 2) || (x < 2 && y > 6)) {
-              cells += `<rect x="${x * 8}" y="${y * 8}" width="8" height="8" fill="#111827"></rect>`;
-            }
-          }
-        }
-        return `<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
-      }
-
-      function renderPublicCatalog() {
-        const filter = document.querySelector('.filter-tab.active')?.dataset.category || 'todos';
-        const grid = byId('publicProducts');
-        if (!grid) return;
-        const items = filter === 'todos' ? state.inventory : state.inventory.filter(item => item.category === filter);
-        grid.innerHTML = items.map(product => `
-          <article class="product-card">
-            <div class="product-top">
-              <div class="product-icon-wrap"><svg class="product-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${categoryIcon(product.category)}</svg></div>
-              <span class="sku-badge">${product.sku}</span>
-            </div>
-            <div class="product-meta"><span class="category-badge ${product.category}">${product.categoryLabel}</span><span class="product-presentation">${product.presentation}</span></div>
-            <h3>${product.name}</h3>
-            <div class="price">${money(fp(product.price))}</div>
-            <p class="product-desc">${product.description}</p>
-            <a class="btn btn-primary" href="${WHATSAPP_BASE}?text=${encodeURIComponent(`Hola DetailingHouse! Me interesa el producto ${product.name} ($${fp(product.price)}). ¿Tienen disponibilidad?`) }" target="_blank" rel="noopener">Pedir por WhatsApp</a>
-          </article>
-        `).join('');
-      }
-
-      function renderPosClientOptions() {
-        const list = byId('posClientOptions');
-        if (!list) return;
-        list.innerHTML = state.clients.map(c => `<option value="${c.name} — ${c.phone}"></option>`).join('');
-      }
-
-      function renderSelectedClientInfo() {
-        const box = byId('posClientInfo');
-        const client = getClient(state.selectedClientId);
-        if (!box) return;
-        if (!client) {
-          box.textContent = 'Selecciona un cliente para ver sus puntos y elegibilidad de canje.';
+  async function handleRegisterSale() {
+    const error   = byId('posError');
+    const success = byId('posSuccess');
+    if (error)   error.textContent   = '';
+    if (success) success.textContent = '';
+    if (!state.cart.length) { if (error) error.textContent = 'Añade al menos un producto o servicio al carrito.'; return; }
+    for (const item of state.cart) {
+      if (item.type === 'product') {
+        const stockItem = state.inventory.find(p => p.sku === item.sku);
+        if (!stockItem || (Number(stockItem.stock) || 0) < (Number(item.qty) || 1)) {
+          if (error) error.textContent = `Stock insuficiente para ${item.name}.`;
           return;
         }
-        const visits = getClientVisits(client.id);
-        const reward = client.points >= 50 ? 'Puede canjear 1 lavado Esencial gratis.' : `Le faltan ${50 - client.points} puntos para un lavado Esencial gratis.`;
-        box.innerHTML = `<strong>${client.name}</strong> · ${client.phone}<br>Puntos: <strong>${client.points}</strong> · Visitas: <strong>${visits}</strong><br>${reward}`;
       }
-
-      function renderPosCatalog() {
-        const catalog = byId('posCatalog');
-        if (!catalog) return;
-        const services = serviceCatalog.map(item => `
-          <article class="catalog-item">
-            <div class="top"><div><h4>${item.name}</h4><small>Servicio</small></div><strong>${money(fp(item.price))}</strong></div>
-            <div class="controls"><input class="qty-input" type="number" min="1" value="1" data-qty="${item.id}"><button class="btn-small" type="button" data-add-service="${item.id}">Añadir</button></div>
-          </article>`).join('');
-        const products = state.inventory.map(item => `
-          <article class="catalog-item">
-            <div class="top"><div><h4>${item.name}</h4><small>${item.sku} · Stock ${item.stock}</small></div><strong>${money(fp(item.price))}</strong></div>
-            <div class="controls"><input class="qty-input" type="number" min="1" value="1" data-qty="${item.sku}"><button class="btn-small" type="button" data-add-product="${item.sku}">Añadir</button></div>
-          </article>`).join('');
-        catalog.innerHTML = `<h4 class="catalog-section-title">Servicios</h4><div class="catalog-grid">${services}</div><h4 class="catalog-section-title" style="margin-top:1.1rem">Productos A1A</h4><div class="catalog-grid">${products}</div>`;
+    }
+    const totals = currentTotals();
+    const saleData = {
+      items: state.cart.map(i => ({ sku: i.type === 'product' ? i.sku : null, name: i.name, price: i.price, qty: i.qty })),
+      subtotal: totals.subtotal, fee: totals.fee, total: totals.total,
+      paymentMethod: totals.method, feeRate: totals.feeRate,
+      clientId: state.selectedClientId || null, clientName: getClient(state.selectedClientId)?.name || ''
+    };
+    try {
+      const result = await api.registerSale(saleData);
+      state.inventory = state.inventory.map(product => {
+        const inCart = state.cart.find(item => item.type === 'product' && item.sku === product.sku);
+        return inCart ? { ...product, stock: Math.max(0, (Number(product.stock) || 0) - inCart.qty) } : product;
+      });
+      const sale = {
+        id: result.id || result.sale?.id || uid('sale'),
+        timestamp: result.created_at || new Date().toISOString(),
+        items: state.cart.map(i => ({ ...i })),
+        subtotal: totals.subtotal, fee: totals.fee, total: totals.total,
+        paymentMethod: totals.method, feeRate: totals.feeRate,
+        clientId: state.selectedClientId || '',
+        clientName: getClient(state.selectedClientId)?.name || ''
+      };
+      state.sales.unshift(sale);
+      state.lastSale = sale;
+      if (sale.clientId) {
+        state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
       }
+      state.cart.length = 0;
+      if (success) success.textContent = 'Venta registrada en la base de datos ✅';
+      updateAll();
+    } catch (e) {
+      if (error) error.textContent = `Error al registrar venta: ${e.message}`;
+    }
+  }
 
-      function currentTotals() {
-        // Precios ya llevan terminal 3.6% + IVA 16% aplicados vía fp()
-        const subtotal = cart.reduce((sum, item) => sum + item.qty * item.price, 0);
-        const method = byId('paymentMethod')?.value || 'Efectivo';
-        return { subtotal, fee: 0, total: subtotal, method, feeRate: 0 };
+  function buildTicketMessage(sale) {
+    const lines = sale.items.map(item => `• ${item.name} x${item.qty} — ${formatCurrency(item.price * item.qty)}`);
+    const text = ['Hola DetailingHouse!', 'Comparto el resumen del ticket:', ...lines, `Método de pago: ${sale.paymentMethod}`, `Total: ${formatCurrency(sale.total)}`].join('\n');
+    return `${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`;
+  }
+
+  function sendTicket() {
+    const sale = state.cart.length
+      ? { items: state.cart, paymentMethod: byId('paymentMethod')?.value || 'Efectivo', total: currentTotals().total }
+      : state.lastSale;
+    if (!sale) { if (byId('posError')) byId('posError').textContent = 'No hay ticket disponible para enviar todavía.'; return; }
+    window.open(buildTicketMessage(sale), '_blank', 'noopener');
+  }
+
+  // ── 13. Auth + tabs ───────────────────────────────────────────────
+  async function handleLogin() {
+    const pass = byId('adminPassword').value.trim();
+    const username = pass === 'DH2025' ? ROLES.ADMIN : pass === 'DH-STAFF' ? ROLES.STAFF : null;
+    if (!username) { byId('adminError').textContent = 'Contraseña incorrecta.'; return; }
+    try {
+      const data = await api.login(username, pass);
+      state.role = data.user?.role || username;
+      byId('adminError').textContent = '';
+      syncRoleUI();
+      await loadState();
+      updateAll();
+    } catch (e) {
+      byId('adminError').textContent = `Error: ${e.message}`;
+    }
+  }
+
+  function handleLogout() {
+    api.logout();
+    state.role = '';
+    syncRoleUI();
+  }
+
+  function syncRoleUI() {
+    const role = state.role;
+    byId('roleBadge').textContent = role ? role.toUpperCase() : 'Sin sesión';
+    byId('adminLoginBox').style.display = role ? 'none' : 'block';
+    byId('adminPanelApp').classList.toggle('active', !!role);
+    document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => {
+      const allowed = (btn.dataset.roles || '').split(',').includes(role);
+      btn.style.display = allowed ? '' : 'none';
+    });
+    if (!role) return;
+    const current = document.querySelector('#adminTabs .tab-btn.active[data-tab]');
+    if (!current || current.style.display === 'none') {
+      const first = [...document.querySelectorAll('#adminTabs .tab-btn[data-tab]')].find(btn => btn.style.display !== 'none');
+      if (first) activateTab(first.dataset.tab);
+    }
+  }
+
+  function activateTab(tab) {
+    document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    document.querySelectorAll('.admin-panel[id^="tab-"]').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tab}`));
+  }
+
+  function bindAdminInteractions() {
+    byId('openAdmin')?.addEventListener('click', () => {
+      byId('adminOverlay').classList.add('open');
+      syncRoleUI();
+    });
+    byId('closeAdmin')?.addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
+    byId('adminLoginBtn')?.addEventListener('click', handleLogin);
+    byId('adminLogoutBtn')?.addEventListener('click', handleLogout);
+    document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
+
+    // Catálogo POS
+    byId('posCatalog')?.addEventListener('click', e => {
+      const sid = e.target.dataset.addService;
+      const sku = e.target.dataset.addProduct;
+      if (sid) {
+        const service = serviceCatalog.find(item => item.id === sid);
+        addItemToCart({ key: sid, sku: sid, name: service.name, price: finalPrice(service.price), type: 'service' }, byId(`posCatalog`)?.querySelector(`[data-qty-for="${sid}"]`)?.value);
       }
-
-      function renderCart() {
-        const list = byId('cartItems');
-        const totals = currentTotals();
-        if (list) list.innerHTML = cart.length ? cart.map((item, i) => `<div class="cart-item"><div class="cart-row"><strong>${item.name}</strong><span>${money(item.qty * item.price)}</span></div><div class="cart-row muted"><span>${item.type === 'product' ? item.sku : 'Servicio'} · ${item.qty} ud.</span><span>${money(item.price)} c/u</span></div><div class="cart-actions"><button class="btn-small" type="button" data-remove-index="${i}">Eliminar</button></div></div>`).join('') : '<div class="empty-state">Añade servicios o productos para registrar la venta.</div>';
-        if (byId('cartSubtotal')) byId('cartSubtotal').textContent = money(totals.subtotal);
-        if (byId('cartFee')) byId('cartFee').textContent = money(totals.fee);
-        if (byId('cartGrand')) byId('cartGrand').textContent = money(totals.total);
+      if (sku) {
+        const product = state.inventory.find(item => item.sku === sku);
+        addItemToCart({ key: sku, sku: sku, name: product.name, price: finalPrice(product.price), type: 'product' }, byId(`posCatalog`)?.querySelector(`[data-qty-for="${sku}"]`)?.value);
       }
+    });
+    byId('registerSaleBtn')?.addEventListener('click', handleRegisterSale);
+    byId('ticketWhatsappBtn')?.addEventListener('click', sendTicket);
+    byId('paymentMethod')?.addEventListener('change', renderCart);
+    byId('terminalFee')?.addEventListener('input', renderCart);
+    byId('posClientSearch')?.addEventListener('input', () => {
+      const match = state.clients.find(c => `${c.name} — ${c.phone}` === byId('posClientSearch').value.trim());
+      state.selectedClientId = match ? match.id : '';
+      renderSelectedClientInfo();
+    });
 
-      function addToCart(item, qty) {
-        const quantity = Math.max(1, Number(qty) || 1);
-        const existing = cart.find(entry => entry.key === item.key);
-        if (existing) existing.qty += quantity; else cart.push({ ...item, qty: quantity });
-        renderCart();
-      }
+    // Inventario
+    byId('inventoryBody')?.addEventListener('click', async e => {
+      const sku = e.target.dataset.editStock; if (!sku) return;
+      const item = state.inventory.find(p => p.sku === sku);
+      const next = await window.dhAdminModal({
+        title: 'Editar stock',
+        body: `<p><b>${item.name}</b> (${item.sku || ''})</p><p>Stock actual: ${item.stock}</p><label>Nuevo stock: <input type="number" min="0" step="1" value="${item.stock}" data-modal-input /></label>`,
+        okText: 'Guardar'
+      });
+      if (next === null) return;
+      const newStock = Math.max(0, Number(next) || 0);
+      try { await api.updateStock(sku, newStock); item.stock = newStock; updateAll(); }
+      catch (err) { window.dhAdminToast('Error al actualizar stock: ' + err.message, 'error'); }
+    });
+    byId('addProductBtn')?.addEventListener('click', async () => {
+      const sku   = byId('newSku').value.trim();
+      const name  = byId('newName').value.trim();
+      const price = Number(byId('newPrice').value);
+      const stock = Number(byId('newStock').value);
+      if (!sku || !name || !price) return;
+      try {
+        await api.addProduct({ sku, name, category: 'especiales', category_label: 'ESPECIALES', price, stock: Math.max(0, stock || 0), presentation: '—', description: 'Producto añadido manualmente.' });
+        state.inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente.', stock: Math.max(0, stock || 0), type: 'product' });
+        ['newSku','newName','newPrice','newStock'].forEach(id => byId(id).value = ''); updateAll();
+      } catch (e) { window.dhAdminToast('Error al agregar producto: ' + e.message, 'error'); }
+    });
 
-      function activeCash() {
-        return state.cashSessions.find(session => !session.closed) || null;
-      }
+    // Clientes
+    byId('saveClientBtn')?.addEventListener('click', async () => {
+      const name  = byId('clientName').value.trim();
+      const phone = byId('clientPhone').value.trim();
+      if (!name || !phone) return;
+      try {
+        const result = await api.addClient({ name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim() });
+        state.clients.unshift({ id: result.id || uid('cli'), name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim(), points: 0 });
+        ['clientName','clientPhone','clientNotes'].forEach(id => byId(id).value = ''); byId('clientSuccess').textContent = 'Cliente guardado en la base de datos ✅'; updateAll();
+      } catch (e) { byId('clientSuccess').textContent = 'Error: ' + e.message; }
+    });
+    byId('clientSearch')?.addEventListener('input', renderClients);
 
-      function renderCash() {
-        const session = activeCash();
-        const summary = byId('cashSummary');
-        const body = byId('cashMovementsBody');
-        const incomes = session ? session.incomes.reduce((a, b) => a + b.amount, 0) : 0;
-        const expenses = session ? session.expenses.reduce((a, b) => a + b.amount, 0) : 0;
-        if (summary) {
-          summary.innerHTML = `<div class="mini-stat"><span>Ingresos</span><strong>${money(incomes)}</strong></div><div class="mini-stat"><span>Gastos</span><strong>${money(expenses)}</strong></div><div class="mini-stat"><span>Utilidad neta</span><strong>${money(incomes - expenses)}</strong></div>`;
-        }
-        if (body) {
-          const rows = session ? [...session.incomes.map(m => ({ ...m, kind: 'Ingreso' })), ...session.expenses.map(m => ({ ...m, kind: 'Gasto' }))].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)) : [];
-          body.innerHTML = rows.length ? rows.map(m => `<tr><td>${new Date(m.timestamp).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</td><td>${m.kind}</td><td>${m.detail}</td><td>${money(m.amount)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay caja abierta o movimientos registrados.</td></tr>';
-        }
-      }
+    // Caja
+    byId('openCashBtn')?.addEventListener('click', async () => {
+      if (activeCash()) { byId('cashSuccess').textContent = 'Ya hay una caja abierta.'; return; }
+      try {
+        const result = await api.openCash(Number(byId('cashInitialAmount').value || 0));
+        state.cashSessions.unshift({ id: result.id || uid('cash'), openedAt: result.opened_at || new Date().toISOString(), initialAmount: Number(result.initial_amount || byId('cashInitialAmount').value || 0), incomes: [], expenses: [], closed: false, closedAt: '' });
+        byId('cashSuccess').textContent = 'Caja abierta en la base de datos ✅'; updateAll();
+      } catch (e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
+    });
+    byId('addExpenseBtn')?.addEventListener('click', async () => {
+      const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'Primero abre caja.'; return; }
+      const amount = Number(byId('cashExpenseAmount').value || 0);
+      const desc   = byId('cashExpenseDesc').value.trim();
+      if (!amount || !desc) return;
+      try {
+        await api.addMovement({ sessionId: session.id, kind: 'gasto', description: `${byId('cashExpenseCategory').value}: ${desc}`, amount });
+        session.expenses.push({ id: uid('exp'), detail: `${byId('cashExpenseCategory').value}: ${desc}`, amount, timestamp: new Date().toISOString() });
+        ['cashExpenseDesc','cashExpenseAmount'].forEach(id => byId(id).value = ''); byId('cashSuccess').textContent = 'Gasto registrado en BD ✅'; updateAll();
+      } catch (e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
+    });
+    byId('closeCashBtn')?.addEventListener('click', async () => {
+      const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'No hay caja abierta.'; return; }
+      try {
+        await api.closeCash();
+        session.closed = true; session.closedAt = new Date().toISOString();
+        const incomes  = session.incomes.reduce((a,b)=>a+b.amount,0);
+        const expenses = session.expenses.reduce((a,b)=>a+b.amount,0);
+        byId('cashSuccess').textContent = `Caja cerrada en BD ✅ · Ingresos: ${formatCurrency(incomes)} · Gastos: ${formatCurrency(expenses)} · Neto: ${formatCurrency(incomes-expenses)}`; updateAll();
+      } catch (e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
+    });
 
-      function renderInventory() {
-        const summary = byId('inventorySummary');
-        const body = byId('inventoryBody');
-        const units = state.inventory.reduce((sum, item) => sum + item.stock, 0);
-        const low = state.inventory.filter(item => item.stock < 3).length;
-        if (summary) summary.innerHTML = `<div class="summary-box"><span>Total SKUs</span><strong>${state.inventory.length}</strong></div><div class="summary-box"><span>Unidades totales</span><strong>${units}</strong></div><div class="summary-box"><span>Stock bajo</span><strong>${low}</strong></div>`;
-        if (body) body.innerHTML = state.inventory.map(item => {
-          const status = item.stock < 3 ? ['low','Bajo'] : item.stock <= 5 ? ['mid','Medio'] : ['ok','Correcto'];
-          return `<tr><td>${item.sku}</td><td>${item.name}</td><td>${money(fp(item.price))}</td><td>${item.stock}</td><td><span class="status ${status[0]}">${status[1]}</span></td><td><button class="btn-small" type="button" data-edit-stock="${item.sku}">Editar stock</button></td></tr>`;
-        }).join('');
-      }
-
-      function renderClients() {
-        const search = (byId('clientSearch')?.value || '').toLowerCase();
-        const body = byId('clientsBody');
-        const filtered = state.clients.filter(c => !search || `${c.name} ${c.phone}`.toLowerCase().includes(search));
-        if (!body) return;
-        body.innerHTML = filtered.length ? filtered.map(client => `<tr><td><strong>${client.name}</strong><br><span class="muted">${client.phone} · ${getClientVisits(client.id)} visitas</span></td><td>${client.carType}</td><td>${client.points}</td><td><div class="client-qr">${qrSvg(client.id)}</div></td></tr>`).join('') : '<tr><td colspan="4" class="muted">No hay clientes registrados.</td></tr>';
-        renderPosClientOptions();
-        renderSelectedClientInfo();
-      }
-
-      function getRangeSales(range) {
-        const now = new Date();
-        return state.sales.filter(sale => {
-          const date = new Date(sale.timestamp);
-          if (range === 'monthly') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-          const day = now.getDay();
-          const diff = (day === 0 ? -6 : 1) - day;
-          const monday = new Date(now); monday.setDate(now.getDate() + diff); monday.setHours(0,0,0,0);
-          return date >= monday;
-        });
-      }
-
-      function renderPayroll() {
-        ['Andres','Erika','Local'].forEach(name => {
-          const input = byId(`pct${name}`); if (input) input.value = state.payrollCfg[name];
-        });
-        const range = byId('payrollRange')?.value || 'weekly';
-        const salesRange = getRangeSales(range);
-        const base = salesRange.reduce((sum, sale) => sum + sale.total, 0);
-        const summary = byId('payrollSummary');
-        if (summary) {
-          summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${money(base)}</td><td>${money(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
-        }
-        const body = byId('payrollCutsBody');
-        if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${money(cut.base)}</td><td>${money(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
-      }
-
-      function renderAgenda() {
-        const title = byId('calendarTitle');
-        const grid = byId('calendarGrid');
-        const todayList = byId('todayAppointments');
-        const month = state.currentMonth;
-        if (title) title.textContent = month.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-        if (grid) {
-          const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-          const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-          const startOffset = (firstDay.getDay() + 6) % 7;
-          const cells = [];
-          for (let i = 0; i < startOffset; i += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), -startOffset + i + 1));
-          for (let d = 1; d <= lastDay.getDate(); d += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
-          while (cells.length % 7 !== 0) cells.push(new Date(month.getFullYear(), month.getMonth() + 1, cells.length - (startOffset + lastDay.getDate()) + 1));
-          grid.innerHTML = cells.map(date => {
-            const key = todayKey(date);
-            const dayAppts = state.appointments.filter(a => a.date === key);
-            const cls = `${date.getMonth() !== month.getMonth() ? 'other' : ''} ${key === todayKey() ? 'today' : ''}`.trim();
-            return `<div class="calendar-day ${cls}"><div class="day-number">${date.getDate()}</div>${dayAppts.map(a => `<button type="button" class="appointment-chip ${serviceClass(a.service)}" data-appt-id="${a.id}">${a.time} · ${a.service}</button>`).join('')}</div>`;
-          }).join('');
-        }
-        if (todayList) {
-          const todays = state.appointments.filter(a => a.date === todayKey());
-          todayList.innerHTML = todays.length ? todays.map(a => `<li><span>${a.time} · ${a.client} · ${a.service}</span><button class="btn-small" type="button" data-appt-id="${a.id}">Ver</button></li>`).join('') : '<li class="muted">No hay citas programadas para hoy.</li>';
-        }
-      }
-
-      function drawChart() {
-        const canvas = byId('salesChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const labels = [];
-        const values = [];
-        for (let i = 6; i >= 0; i -= 1) {
-          const date = new Date(); date.setDate(date.getDate() - i);
-          const key = todayKey(date);
-          labels.push(date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
-          values.push(state.sales.filter(s => todayKey(s.timestamp) === key).reduce((sum, sale) => sum + sale.total, 0));
-        }
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        const max = Math.max(...values, 1);
-        const chartHeight = 210; const barWidth = 68; const gap = 34;
-        values.forEach((value, index) => {
-          const x = 50 + index * (barWidth + gap);
-          const height = (value / max) * chartHeight;
-          const y = 235 - height;
-          ctx.fillStyle = 'rgba(220,38,38,0.18)';
-          ctx.fillRect(x, 25, barWidth, chartHeight + 10);
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(x, y, barWidth, height);
-          ctx.fillStyle = '#f9fafb';
-          ctx.font = '12px Inter';
-          ctx.fillText(labels[index], x + 12, 265);
-          ctx.fillText(value ? `$${Math.round(value)}` : '$0', x + 10, y - 8);
-        });
-      }
-
-      function renderDashboard() {
-        const todaySales = state.sales.filter(s => isToday(s.timestamp));
-        const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
-        const openCash = activeCash();
-        const expenses = openCash ? openCash.expenses.reduce((sum, e) => sum + e.amount, 0) : 0;
-        const clientsToday = new Set(todaySales.filter(s => s.clientId).map(s => s.clientId)).size;
-        const avg = todaySales.length ? todayRevenue / todaySales.length : 0;
-        byId('dashSalesToday').textContent = String(todaySales.length);
-        byId('dashNetToday').textContent = money(todayRevenue - expenses);
-        byId('dashClientsToday').textContent = String(clientsToday);
-        byId('dashAvgTicket').textContent = money(avg);
-        const itemMap = {}; const serviceMap = {}; const productMap = {};
-        state.sales.forEach(sale => sale.items.forEach(item => { itemMap[item.name] = (itemMap[item.name] || 0) + item.qty; if (item.type === 'service') serviceMap[item.name] = (serviceMap[item.name] || 0) + item.qty; else productMap[item.name] = (productMap[item.name] || 0) + item.qty; }));
-        byId('topServicesList').innerHTML = Object.entries(serviceMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
-        byId('topProductsList').innerHTML = Object.entries(productMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
-        const low = state.inventory.filter(item => item.stock < 3);
-        byId('stockAlerts').innerHTML = low.length ? low.map(item => `<span class="alert-pill">${item.name} · ${item.stock} ud.</span>`).join('') : '<span class="muted">Sin alertas activas.</span>';
-        byId('dashboardMetrics').innerHTML = `<div class="mini-stat"><span>Ingresos de caja</span><strong>${money(openCash ? openCash.incomes.reduce((s,m)=>s+m.amount,0) : 0)}</strong></div><div class="mini-stat"><span>Gastos de caja</span><strong>${money(expenses)}</strong></div><div class="mini-stat"><span>Stock bajo</span><strong>${low.length}</strong></div>`;
-        byId('recentSalesBody').innerHTML = state.sales.length ? state.sales.slice(0, 6).map(sale => `<tr><td>${new Date(sale.timestamp).toLocaleString('es-MX')}</td><td>${sale.items.map(i => `${i.name} x${i.qty}`).join(', ')}</td><td>${sale.paymentMethod}</td><td>${money(sale.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Aún no hay ventas registradas.</td></tr>';
-        drawChart();
-      }
-
-      function updateAll() {
-        persistAll();
-        renderPublicCatalog();
-        renderPosClientOptions();
-        renderSelectedClientInfo();
-        renderPosCatalog();
-        renderCart();
-        renderInventory();
-        renderClients();
-        renderCash();
-        renderPayroll();
-        renderAgenda();
-        renderDashboard();
-      }
-
-      async function registerSaleV2() {
-        const error = byId('posError'); const success = byId('posSuccess');
-        if (error) error.textContent = ''; if (success) success.textContent = '';
-        if (!cart.length) { if (error) error.textContent = 'Añade al menos un concepto al carrito.'; return; }
-        for (const item of cart) {
-          if (item.type === 'product') {
-            const stockItem = state.inventory.find(p => p.sku === item.sku);
-            if (!stockItem || stockItem.stock < item.qty) { if (error) error.textContent = `Stock insuficiente para ${item.name}.`; return; }
-          }
-        }
-        const totals = currentTotals();
-        const saleData = {
-          items: cart.map(i => ({ sku: i.type === 'product' ? i.sku : null, name: i.name, price: i.price, qty: i.qty })),
-          subtotal: totals.subtotal, fee: totals.fee, total: totals.total,
-          paymentMethod: totals.method, feeRate: totals.feeRate,
-          clientId: state.selectedClientId || null, clientName: getClient(state.selectedClientId)?.name || ''
-        };
-        try {
-          const result = await api.registerSale(saleData);
-          // Actualizar stock local
-          state.inventory = state.inventory.map(product => {
-            const inCart = cart.find(item => item.type === 'product' && item.sku === product.sku);
-            return inCart ? { ...product, stock: Math.max(0, product.stock - inCart.qty) } : product;
-          });
-          // Agregar venta al estado local
-          const sale = { id: result.id || result.sale?.id || uid('sale'), timestamp: result.created_at || new Date().toISOString(), items: cart.map(i => ({ ...i })), subtotal: totals.subtotal, fee: totals.fee, total: totals.total, paymentMethod: totals.method, feeRate: totals.feeRate, clientId: state.selectedClientId || '', clientName: getClient(state.selectedClientId)?.name || '' };
-          state.sales.unshift(sale);
-          state.lastSale = sale;
-          // Sumar puntos al cliente
-          if (sale.clientId) {
-            state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
-          }
-          cart = [];
-          if (success) success.textContent = 'Venta registrada en la base de datos ✅';
-          updateAll();
-        } catch (e) {
-          if (error) error.textContent = `Error al registrar venta: ${e.message}`;
-        }
-      }
-
-      function sendTicketV2() {
-        const sale = cart.length ? { items: cart, paymentMethod: byId('paymentMethod').value, total: currentTotals().total } : state.lastSale;
-        if (!sale) { if (byId('posError')) byId('posError').textContent = 'No hay ticket disponible.'; return; }
-        const lines = sale.items.map(item => `• ${item.name} x${item.qty} — ${money(item.qty * item.price)}`);
-        const text = ['Hola DetailingHouse!', 'Comparto el resumen del ticket:', ...lines, `Método de pago: ${sale.paymentMethod}`, `Total: ${money(sale.total)}`].join('\n');
-        window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-      }
-
-      function syncRoleUI() {
-        const role = state.role;
-        byId('roleBadge').textContent = role ? role.toUpperCase() : 'Sin sesión';
-        byId('adminLoginBox').style.display = role ? 'none' : 'block';
-        byId('adminPanelApp').classList.toggle('active', !!role);
-        document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => {
-          const allowed = (btn.dataset.roles || '').split(',').includes(role);
-          btn.style.display = allowed ? '' : 'none';
-        });
-        if (!role) return;
-        const current = document.querySelector('#adminTabs .tab-btn.active[data-tab]');
-        if (!current || current.style.display === 'none') {
-          const first = [...document.querySelectorAll('#adminTabs .tab-btn[data-tab]')].find(btn => btn.style.display !== 'none');
-          if (first) activateTab(first.dataset.tab);
-        }
-      }
-
-      function activateTab(tab) {
-        document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
-        document.querySelectorAll('.admin-panel[id^="tab-"]').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tab}`));
-      }
-
-      function exportCsv() {
-        const todaySales = state.sales.filter(s => isToday(s.timestamp));
-        const range = byId('payrollRange')?.value || 'weekly';
-        const base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
-        const lines = ['Ventas del día'];
-        lines.push('fecha,servicio_producto,precio,metodo_pago');
-        todaySales.forEach(sale => sale.items.forEach(item => lines.push(`${sale.timestamp},${item.name.replace(/,/g,' ')},${item.price},${sale.paymentMethod}`)));
-        lines.push('');
-        lines.push('Resumen de nómina');
-        lines.push('socio,porcentaje,ventas_base,monto');
-        Object.entries(state.payrollCfg).forEach(([name,pct]) => lines.push(`${name},${pct},${base},${(base*pct/100).toFixed(2)}`));
-        lines.push('');
-        lines.push('Estado de inventario');
-        lines.push('sku,nombre,precio,stock');
-        state.inventory.forEach(item => lines.push(`${item.sku},${item.name.replace(/,/g,' ')},${item.price},${item.stock}`));
-        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `detailinghouse-reporte-${todayKey()}.csv`; a.click();
-        URL.revokeObjectURL(url);
-      }
-
-      function bindPublicInteractions() {
-        document.querySelectorAll('.accordion-trigger').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const panel = btn.nextElementSibling;
-            const open = panel.style.maxHeight;
-            document.querySelectorAll('.accordion-panel').forEach(p => { p.style.maxHeight = null; p.previousElementSibling.lastElementChild.textContent = '+'; });
-            if (!open) { panel.style.maxHeight = `${panel.scrollHeight}px`; btn.lastElementChild.textContent = '−'; }
-          });
-        });
-        const observer = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
-            const el = entry.target; const target = Number(el.dataset.target || 0); let value = 0;
-            const step = Math.max(1, Math.ceil(target / 40));
-            const timer = setInterval(() => { value += step; if (value >= target) { value = target; clearInterval(timer); } el.textContent = value; }, 25);
-            observer.unobserve(el);
-          });
-        }, { threshold: 0.45 });
-        document.querySelectorAll('.counter-value').forEach(el => observer.observe(el));
-        byId('productFilters')?.addEventListener('click', e => {
-          const btn = e.target.closest('.filter-tab');
-          if (!btn) return;
-          document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-          btn.classList.add('active');
-          renderPublicCatalog();
-        });
-      }
-
-      function bindAdminInteractions() {
-        cloneEl('openAdmin'); cloneEl('closeAdmin'); cloneEl('adminLoginBtn'); cloneEl('adminLogoutBtn'); cloneEl('adminTabs');
-        cloneEl('registerSaleBtn'); cloneEl('ticketWhatsappBtn'); cloneEl('paymentMethod'); cloneEl('terminalFee'); cloneEl('posCatalog'); cloneEl('cartItems'); cloneEl('inventoryBody'); cloneEl('addProductBtn'); cloneEl('saveClientBtn'); cloneEl('clientSearch'); cloneEl('openCashBtn'); cloneEl('addExpenseBtn'); cloneEl('closeCashBtn'); cloneEl('generateCutBtn'); cloneEl('payrollWhatsappBtn'); cloneEl('saveApptBtn'); cloneEl('apptWhatsappBtn'); cloneEl('prevMonthBtn'); cloneEl('nextMonthBtn'); cloneEl('exportCsvBtn');
-
-        byId('openAdmin').addEventListener('click', () => { byId('adminOverlay').classList.add('open'); syncRoleUI(); });
-        byId('closeAdmin').addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
-        byId('adminLoginBtn').addEventListener('click', async () => {
-          const pass = byId('adminPassword').value.trim();
-          const username = pass === 'DH2025' ? 'admin' : pass === 'DH-STAFF' ? 'staff' : null;
-          if (!username) { byId('adminError').textContent = 'Contraseña incorrecta.'; return; }
-          try {
-            const data = await api.login(username, pass);
-            state.role = data.user?.role || username;
-            byId('adminError').textContent = '';
-            syncRoleUI();
-            // Recargar datos desde la API con el token
-            await loadState();
-            updateAll();
-          } catch (e) {
-            byId('adminError').textContent = `Error: ${e.message}`;
-          }
-        });
-        byId('adminLogoutBtn').addEventListener('click', () => { api.logout(); state.role = ''; syncRoleUI(); });
-        document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
-
-        byId('posCatalog').addEventListener('click', e => {
-          const sid = e.target.dataset.addService; const sku = e.target.dataset.addProduct;
-          if (sid) { const service = serviceCatalog.find(item => item.id === sid); addToCart({ key: sid, sku: sid, name: service.name, price: fp(service.price), type: 'service' }, document.querySelector(`[data-qty="${sid}"]`)?.value); }
-          if (sku) { const product = state.inventory.find(item => item.sku === sku); addToCart({ key: sku, sku: sku, name: product.name, price: fp(product.price), type: 'product' }, document.querySelector(`[data-qty="${sku}"]`)?.value); }
-        });
-        byId('cartItems').addEventListener('click', e => {
-          const index = e.target.dataset.removeIndex; if (index === undefined) return; cart.splice(Number(index), 1); renderCart();
-        });
-        byId('registerSaleBtn').addEventListener('click', registerSaleV2);
-        byId('ticketWhatsappBtn').addEventListener('click', sendTicketV2);
-        byId('paymentMethod').addEventListener('change', renderCart);
-        byId('terminalFee').addEventListener('input', renderCart);
-        byId('posClientSearch').addEventListener('input', () => {
-          const match = state.clients.find(c => `${c.name} — ${c.phone}` === byId('posClientSearch').value.trim());
-          state.selectedClientId = match ? match.id : '';
-          renderSelectedClientInfo();
-        });
-
-        byId('inventoryBody').addEventListener('click', async e => {
-          const sku = e.target.dataset.editStock; if (!sku) return;
-          const item = state.inventory.find(p => p.sku === sku);
-          const next = await window.dhAdminModal({
-            title: 'Editar stock',
-            body: `<p><b>${item.name}</b> (${item.sku || ''})</p><p>Stock actual: ${item.stock}</p><label>Nuevo stock: <input type="number" min="0" step="1" value="${item.stock}" data-modal-input /></label>`,
-            okText: 'Guardar'
-          });
-          if (next === null) return;
-          const newStock = Math.max(0, Number(next) || 0);
-          try { await api.updateStock(sku, newStock); item.stock = newStock; updateAll(); }
-          catch (err) { window.dhAdminToast('Error al actualizar stock: ' + err.message, 'error'); }
-        });
-        byId('addProductBtn').addEventListener('click', async () => {
-          const sku = byId('newSku').value.trim(); const name = byId('newName').value.trim(); const price = Number(byId('newPrice').value); const stock = Number(byId('newStock').value);
-          if (!sku || !name || !price) return;
-          try {
-            await api.addProduct({ sku, name, category: 'especiales', category_label: 'ESPECIALES', price, stock: Math.max(0, stock || 0), presentation: '—', description: 'Producto añadido manualmente.' });
-            state.inventory.unshift({ sku, name, category: 'especiales', categoryLabel: 'ESPECIALES', price, presentation: '—', description: 'Producto añadido manualmente.', stock: Math.max(0, stock || 0), type: 'product' });
-            ['newSku','newName','newPrice','newStock'].forEach(id => byId(id).value = ''); updateAll();
-          } catch (e) { window.dhAdminToast('Error al agregar producto: ' + e.message, 'error'); }
-        });
-
-        byId('saveClientBtn').addEventListener('click', async () => {
-          const name = byId('clientName').value.trim(); const phone = byId('clientPhone').value.trim(); if (!name || !phone) return;
-          try {
-            const result = await api.addClient({ name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim() });
-            state.clients.unshift({ id: result.id || uid('cli'), name, phone, carType: byId('clientCarType').value, notes: byId('clientNotes').value.trim(), points: 0 });
-            ['clientName','clientPhone','clientNotes'].forEach(id => byId(id).value = ''); byId('clientSuccess').textContent = 'Cliente guardado en la base de datos ✅'; updateAll();
-          } catch(e) { byId('clientSuccess').textContent = 'Error: ' + e.message; }
-        });
-        byId('clientSearch').addEventListener('input', renderClients);
-
-        byId('openCashBtn').addEventListener('click', async () => {
-          if (activeCash()) { byId('cashSuccess').textContent = 'Ya hay una caja abierta.'; return; }
-          try {
-            const result = await api.openCash(Number(byId('cashInitialAmount').value || 0));
-            state.cashSessions.unshift({ id: result.id || uid('cash'), openedAt: result.opened_at || new Date().toISOString(), initialAmount: Number(result.initial_amount || byId('cashInitialAmount').value || 0), incomes: [], expenses: [], closed: false, closedAt: '' });
-            byId('cashSuccess').textContent = 'Caja abierta en la base de datos ✅'; updateAll();
-          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
-        });
-        byId('addExpenseBtn').addEventListener('click', async () => {
-          const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'Primero abre caja.'; return; }
-          const amount = Number(byId('cashExpenseAmount').value || 0); const desc = byId('cashExpenseDesc').value.trim(); if (!amount || !desc) return;
-          try {
-            await api.addMovement({ sessionId: session.id, kind: 'gasto', description: `${byId('cashExpenseCategory').value}: ${desc}`, amount });
-            session.expenses.push({ id: uid('exp'), detail: `${byId('cashExpenseCategory').value}: ${desc}`, amount, timestamp: new Date().toISOString() });
-            ['cashExpenseDesc','cashExpenseAmount'].forEach(id => byId(id).value = ''); byId('cashSuccess').textContent = 'Gasto registrado en BD ✅'; updateAll();
-          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
-        });
-        byId('closeCashBtn').addEventListener('click', async () => {
-          const session = activeCash(); if (!session) { byId('cashSuccess').textContent = 'No hay caja abierta.'; return; }
-          try {
-            await api.closeCash();
-            session.closed = true; session.closedAt = new Date().toISOString();
-            const incomes = session.incomes.reduce((a,b)=>a+b.amount,0); const expenses = session.expenses.reduce((a,b)=>a+b.amount,0);
-            byId('cashSuccess').textContent = `Caja cerrada en BD ✅ · Ingresos: ${money(incomes)} · Gastos: ${money(expenses)} · Neto: ${money(incomes-expenses)}`; updateAll();
-          } catch(e) { byId('cashSuccess').textContent = 'Error: ' + e.message; }
-        });
-
-        ['pctAndres','pctErika','pctLocal'].forEach(id => byId(id).addEventListener('input', () => { state.payrollCfg.Andres = Number(byId('pctAndres').value || 0); state.payrollCfg.Erika = Number(byId('pctErika').value || 0); state.payrollCfg.Local = Number(byId('pctLocal').value || 0); updateAll(); }));
-        byId('payrollRange').addEventListener('change', renderPayroll);
-        byId('generateCutBtn').addEventListener('click', async () => {
-          const range = byId('payrollRange').value;
-          try {
-            const result = await api.generateCut(range);
-            const base = result.totalSales || getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
-            const shares = Object.entries(state.payrollCfg).map(([name,pct]) => ({ name, pct, amount: base * pct / 100 }));
-            state.payrollCuts.unshift({ id: result.id || uid('cut'), timestamp: new Date().toISOString(), range, base, total: shares.reduce((s,x)=>s+x.amount,0), shares }); updateAll();
-          } catch (e) { window.dhAdminToast('Error al generar corte: ' + e.message, 'error'); }
-        });
-        byId('payrollWhatsappBtn').addEventListener('click', () => {
-          const cut = state.payrollCuts[0]; if (!cut) return;
-          const text = ['Hola DetailingHouse! Resumen de corte:', `Periodo: ${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}`, `Base: ${money(cut.base)}`, ...cut.shares.map(s => `${s.name} ${s.pct}% = ${money(s.amount)}`)].join('\n');
-          window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-        });
-
-        byId('saveApptBtn').addEventListener('click', async () => {
-          const client = byId('apptClient').value.trim(); const service = byId('apptService').value; const date = byId('apptDate').value; const time = byId('apptTime').value; const address = byId('apptAddress').value.trim();
-          if (!client || !date || !time || !address) return;
-          try {
-            const result = await api.addAppointment({ client, service, date, time, address, notes: byId('apptNotes').value.trim() });
-            state.appointments.push({ id: result.id || uid('apt'), client, service, date, time, address, notes: byId('apptNotes').value.trim(), status: 'pendiente' });
-            ['apptClient','apptDate','apptTime','apptAddress','apptNotes'].forEach(id => byId(id).value = ''); updateAll();
-          } catch (e) { window.dhAdminToast('Error al guardar cita: ' + e.message, 'error'); }
-        });
-        byId('apptWhatsappBtn').addEventListener('click', () => {
-          const service = byId('apptService').value; const date = byId('apptDate').value || '[FECHA]'; const time = byId('apptTime').value || '[HORA]'; const address = byId('apptAddress').value || '[DIRECCIÓN]';
-          const text = `Hola DetailingHouse! Quiero agendar una cita para ${service} el ${date} a las ${time} en ${address}`;
-          window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-        });
-        byId('prevMonthBtn').addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1); renderAgenda(); });
-        byId('nextMonthBtn').addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1); renderAgenda(); });
-        byId('calendarGrid').addEventListener('click', async e => {
-          const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); if (!appt) return;
-          const action = await window.dhAdminModal({
-            title: 'Actualizar cita',
-            body: `<p><b>${appt.client}</b> · ${appt.service}</p><p>${appt.date} ${appt.time}</p><p>${appt.address}</p><label>Acción: <select data-modal-input><option value="completar">Completar</option><option value="cancelar">Cancelar</option></select></label>`,
-            okText: 'Guardar'
-          });
-          if (!action) return;
-          const newStatus = action === 'cancelar' ? 'cancelada' : 'completada';
-          try { await api.updateAppointment(id, { status: newStatus }); appt.status = newStatus; updateAll(); }
-          catch (err) { window.dhAdminToast('Error al actualizar cita: ' + err.message, 'error'); }
-        });
-        byId('todayAppointments').addEventListener('click', e => {
-          const id = e.target.dataset.apptId; if (!id) return; const appt = state.appointments.find(a => a.id === id); window.dhAdminToast(`${appt.client} · ${appt.service} · ${appt.date} ${appt.time} · ${appt.status}`, 'info');
-        });
-
-        byId('exportCsvBtn').addEventListener('click', exportCsv);
-      }
-
-      async function init() {
-        // Restaurar token JWT si existe
-        const savedToken = api.restoreToken();
-        if (savedToken) {
-          try {
-            const me = await api.request('/auth/me');
-            state.role = me.user?.role || me.role || '';
-          } catch(e) { api.logout(); }
-        }
-        // Cargar datos desde API
-        await loadState();
-        bindPublicInteractions();
-        bindAdminInteractions();
-        syncRoleUI();
+    // Nómina
+    ['pctAndres','pctErika','pctLocal'].forEach(id => byId(id)?.addEventListener('input', () => {
+      state.payrollCfg.Andres = Number(byId('pctAndres').value || 0);
+      state.payrollCfg.Erika  = Number(byId('pctErika').value || 0);
+      state.payrollCfg.Local  = Number(byId('pctLocal').value || 0);
+      updateAll();
+    }));
+    byId('payrollRange')?.addEventListener('change', renderPayroll);
+    byId('generateCutBtn')?.addEventListener('click', async () => {
+      const range = byId('payrollRange').value;
+      try {
+        const result = await api.generateCut(range);
+        const base = result.totalSales || getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+        const shares = Object.entries(state.payrollCfg).map(([name,pct]) => ({ name, pct, amount: base * pct / 100 }));
+        state.payrollCuts.unshift({ id: result.id || uid('cut'), timestamp: new Date().toISOString(), range, base, total: shares.reduce((s,x)=>s+x.amount,0), shares });
         updateAll();
-        activateTab('pos');
-      }
+      } catch (e) { window.dhAdminToast('Error al generar corte: ' + e.message, 'error'); }
+    });
+    byId('payrollWhatsappBtn')?.addEventListener('click', () => {
+      const cut = state.payrollCuts[0]; if (!cut) return;
+      const text = ['Hola DetailingHouse! Resumen de corte:', `Periodo: ${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}`, `Base: ${formatCurrency(cut.base)}`, ...cut.shares.map(s => `${s.name} ${s.pct}% = ${formatCurrency(s.amount)}`)].join('\n');
+      window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    });
 
-      init();
-    })();
-  </script>
+    // Agenda
+    byId('saveApptBtn')?.addEventListener('click', async () => {
+      const client  = byId('apptClient').value.trim();
+      const service = byId('apptService').value;
+      const date    = byId('apptDate').value;
+      const time    = byId('apptTime').value;
+      const address = byId('apptAddress').value.trim();
+      if (!client || !date || !time || !address) return;
+      try {
+        const result = await api.addAppointment({ client, service, date, time, address, notes: byId('apptNotes').value.trim() });
+        state.appointments.push({ id: result.id || uid('apt'), client, service, date, time, address, notes: byId('apptNotes').value.trim(), status: 'pendiente' });
+        ['apptClient','apptDate','apptTime','apptAddress','apptNotes'].forEach(id => byId(id).value = ''); updateAll();
+      } catch (e) { window.dhAdminToast('Error al guardar cita: ' + e.message, 'error'); }
+    });
+    byId('apptWhatsappBtn')?.addEventListener('click', () => {
+      const service = byId('apptService').value;
+      const date    = byId('apptDate').value    || '[FECHA]';
+      const time    = byId('apptTime').value    || '[HORA]';
+      const address = byId('apptAddress').value || '[DIRECCIÓN]';
+      const text    = `Hola DetailingHouse! Quiero agendar una cita para ${service} el ${date} a las ${time} en ${address}`;
+      window.open(`${WHATSAPP_BASE}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    });
+    byId('prevMonthBtn')?.addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1); renderAgenda(); });
+    byId('nextMonthBtn')?.addEventListener('click', () => { state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1); renderAgenda(); });
+    byId('calendarGrid')?.addEventListener('click', async e => {
+      const id = e.target.dataset.apptId; if (!id) return;
+      const appt = state.appointments.find(a => a.id === id); if (!appt) return;
+      const action = await window.dhAdminModal({
+        title: 'Actualizar cita',
+        body: `<p><b>${appt.client}</b> · ${appt.service}</p><p>${appt.date} ${appt.time}</p><p>${appt.address}</p><label>Acción: <select data-modal-input><option value="completar">Completar</option><option value="cancelar">Cancelar</option></select></label>`,
+        okText: 'Guardar'
+      });
+      if (!action) return;
+      const newStatus = action === 'cancelar' ? 'cancelada' : 'completada';
+      try { await api.updateAppointment(id, { status: newStatus }); appt.status = newStatus; updateAll(); }
+      catch (err) { window.dhAdminToast('Error al actualizar cita: ' + err.message, 'error'); }
+    });
+    byId('todayAppointments')?.addEventListener('click', e => {
+      const id = e.target.dataset.apptId; if (!id) return;
+      const appt = state.appointments.find(a => a.id === id);
+      window.dhAdminToast(`${appt.client} · ${appt.service} · ${appt.date} ${appt.time} · ${appt.status}`, 'info');
+    });
+
+    // CSV
+    byId('exportCsvBtn')?.addEventListener('click', exportCsv);
+  }
+
+  // ── 14. Init ──────────────────────────────────────────────────────
+  async function init() {
+    // Restaurar token JWT si existe
+    const savedToken = api.restoreToken();
+    if (savedToken) {
+      try {
+        const me = await api.request('/auth/me');
+        state.role = me.user?.role || me.role || '';
+      } catch (e) { api.logout(); }
+    }
+    await loadState();
+    // Render público (siempre)
+    renderPublicProducts('todos');
+    renderServicesStrip();
+    // Bind público (filtros, acordeón FAQ, contadores, menú móvil, carrito flotante)
+    bindPublicInteractions();
+    // Bind admin (handlers de las 7 tabs)
+    bindAdminInteractions();
+    // UI admin (login box vs panel)
+    syncRoleUI();
+    // Render admin inicial
+    updateAll();
+    // Activar POS por defecto
+    activateTab('pos');
+    // Si no hay sesión, abrir login overlay automáticamente
+    if (!state.role) {
+      byId('openAdmin')?.click();
+    }
+  }
+
+  init();
+})();  </script>
   <div id="adminToasts"></div>
   <div id="adminModals"></div>
   </body>

@@ -43,6 +43,7 @@ update_docs.py
 *.tmp
 *.temp
 *.bak
+*.bak-*
 *.backup
 *.log
 
