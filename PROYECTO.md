@@ -2,13 +2,56 @@
 
 **Fuente de verdad del backlog.** Toda tarea en `[ ]` debe tener un ADR o SPEC asociado antes de pasar a `[~] Planificado`. Cronista mantiene este archivo sincronizado.
 
-**Última actualización:** 2026-07-10 05:54 (CORS bypaseado en producción, deploy Vercel OK)
-**Versión actual:** v4.0.0
+**Última actualización:** 2026-07-11 00:45 (Fase 1 completada: backend servicios CRUD)  
+**Versión actual:** v4.1.0-dev  
 **Rama:** `main`
 
 ---
 
-## 📋 Micro-Sprint activo: `FIX-20260710-01` (implementación lista, en auditoría)
+## 📋 Micro-Sprint activo: `ADMIN-PROFESIONAL-20260711`
+
+**Fecha inicio:** 2026-07-11  
+**Objetivo:** Sistema admin profesional autogestionable con CRUD completo de productos y servicios, diseño moderno y responsive.  
+**SPEC maestro:** [`context/SPECs/MICRO-SPRINT-20260711-admin-profesional.md`](context/SPECs/MICRO-SPRINT-20260711-admin-profesional.md)  
+**ADR:** [`context/decisions/ADR-20260711-01-reutilizar-backend-railway.md`](context/decisions/ADR-20260711-01-reutilizar-backend-railway.md)
+
+### Fases
+
+| Fase | Descripción | Estado | Timeline |
+|------|-------------|--------|----------|
+| **1** | Backend: tabla + endpoints servicios | ✅ **Completada** | Día 1 |
+| **2** | Frontend: rediseño completo admin | ⏳ Pendiente | Días 2-3 |
+| **3** | Frontend: CRUD productos | ⏳ Pendiente | Días 3-4 |
+| **4** | Frontend: CRUD servicios | ⏳ Pendiente | Días 4-5 |
+| **5** | Frontend: cache invalidation | ⏳ Pendiente | Día 5 |
+
+### Fase 1: Backend servicios ✅
+
+**Implementado por:** SOFIA  
+**Commit:** `99e0b31` en `frank-vcorp/detailinghouse-api`  
+**Checkpoint:** [`context/checkpoints/CHK_2026-07-11_0045_fase1-backend-servicios.md`](context/checkpoints/CHK_2026-07-11_0045_fase1-backend-servicios.md)  
+**SPEC:** [`context/SPECs/SPEC-BACKEND-001-services-crud.md`](context/SPECs/SPEC-BACKEND-001-services-crud.md)
+
+**Entregables:**
+- ✅ Tabla `services` en PostgreSQL (10 columnas + 2 índices)
+- ✅ 8 servicios seed (3 principales + 5 secundarios)
+- ✅ Endpoints CRUD completos (GET, POST, PATCH, DELETE)
+- ✅ Endpoint `last-update` para cache invalidation
+- ✅ 18/18 tests E2E pasaron
+- ✅ Verificación con Playwright OK
+- ✅ Deploy a producción Railway OK
+
+**Verificación:**
+- ✅ Revisión de código por INTEGRA
+- ✅ Pruebas E2E con Playwright
+- ✅ Página pública funciona sin errores
+- ✅ Admin panel funciona sin errores
+
+**Pendiente:** Revisión visual por humano antes de proceder a Fase 2.
+
+---
+
+## 📋 Micro-Sprint anterior: `FIX-20260710-01` (completado)
 
 **Fecha:** 2026-07-10
 **Objetivo:** Deduplicar los 2 bloques `<script>` de `index.html` y eliminar código muerto.

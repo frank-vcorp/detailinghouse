@@ -2850,6 +2850,451 @@
       .admin-modal-actions .btn-secondary { background: #334155; color: #fff; }
       .admin-modal-actions .btn-primary { background: #dc2626; color: #fff; }
       .admin-modal-actions .btn-primary:hover { background: #b91c1c; }
+
+      /* ═══════════════════════════════════════════════════════════════
+         ADMIN PANEL PROFESIONAL · REDESIGN (Fases 2-5)
+         IMPL-20260711-01
+         ═══════════════════════════════════════════════════════════════ */
+      .admin-shell {
+        display: flex;
+        height: 100dvh;
+        background: #F8F9FA;
+      }
+      .admin-sidebar {
+        width: 240px;
+        background: #FFFFFF;
+        border-right: 1px solid #E1E4E8;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+      }
+      .admin-sidebar .sidebar-header {
+        padding: 24px;
+        border-bottom: 1px solid #E1E4E8;
+      }
+      .admin-sidebar .sidebar-header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #24292E;
+        margin: 0;
+      }
+      .admin-sidebar .sidebar-nav {
+        flex: 1;
+        padding: 16px 0;
+        overflow-y: auto;
+      }
+      .admin-sidebar .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 24px;
+        color: #586069;
+        text-decoration: none;
+        cursor: pointer;
+        background: none;
+        border: none;
+        border-left: 3px solid transparent;
+        width: 100%;
+        text-align: left;
+        font-size: 14px;
+        transition: all 0.2s ease;
+      }
+      .admin-sidebar .nav-item:hover {
+        background: #F8F9FA;
+        color: #0366D6;
+      }
+      .admin-sidebar .nav-item.active {
+        background: #F8F9FA;
+        color: #0366D6;
+        border-left-color: #0366D6;
+        font-weight: 500;
+      }
+      .admin-sidebar .nav-icon {
+        font-size: 20px;
+        width: 20px;
+        text-align: center;
+      }
+      .admin-sidebar .sidebar-footer {
+        border-top: 1px solid #E1E4E8;
+        padding: 16px 0;
+      }
+      .admin-sidebar .user-info {
+        padding: 16px 24px;
+        border-bottom: 1px solid #E1E4E8;
+      }
+      .admin-sidebar .role-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #0366D6;
+        color: #fff;
+      }
+      .admin-sidebar .logout-btn {
+        color: #DC3545;
+        width: 100%;
+      }
+      .admin-sidebar .logout-btn:hover {
+        background: #FFF5F5;
+      }
+
+      .admin-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: auto;
+      }
+      .admin-main .main-header {
+        background: #FFFFFF;
+        border-bottom: 1px solid #E1E4E8;
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .admin-main .hamburger-btn {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #24292E;
+        padding: 8px;
+      }
+      .admin-main .page-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #24292E;
+        margin: 0;
+      }
+      .admin-main .main-content {
+        padding: 32px;
+        flex: 1;
+        color: #24292E;
+      }
+
+      /* Reuso del section header + cards para todas las secciones */
+      .admin-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .admin-section-header h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: #24292E;
+        margin: 0;
+      }
+      .admin-section-card {
+        background: #FFFFFF;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+
+      /* Tablas rediseño */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #FFFFFF;
+        font-size: 14px;
+      }
+      .data-table th {
+        background: #F8F9FA;
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #24292E;
+        border-bottom: 2px solid #E1E4E8;
+      }
+      .data-table td {
+        padding: 16px;
+        border-bottom: 1px solid #E1E4E8;
+        color: #586069;
+      }
+      .data-table tr:hover {
+        background: #F8F9FA;
+      }
+      .data-table .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .data-table code {
+        background: #F8F9FA;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 13px;
+      }
+
+      /* Status / category / stock badges */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .status-badge.status-active {
+        background: #D4EDDA;
+        color: #155724;
+      }
+      .status-badge.status-inactive {
+        background: #F8D7DA;
+        color: #721C24;
+      }
+      .stock-indicator {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .stock-indicator.stock-ok {
+        background: #D4EDDA;
+        color: #155724;
+      }
+      .stock-indicator.stock-low {
+        background: #FFF3CD;
+        color: #856404;
+      }
+      .stock-indicator.stock-out {
+        background: #F8D7DA;
+        color: #721C24;
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .badge.badge-principal {
+        background: #D4EDDA;
+        color: #155724;
+      }
+      .badge.badge-secundario,
+      .badge.badge-category {
+        background: #E1E4E8;
+        color: #24292E;
+      }
+
+      /* Botones admin rediseño */
+      .btn-admin {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-admin.btn-primary {
+        background: #0366D6;
+        color: #fff;
+      }
+      .btn-admin.btn-primary:hover {
+        background: #0056B3;
+      }
+      .btn-admin.btn-secondary {
+        background: #FFFFFF;
+        color: #24292E;
+        border: 1px solid #E1E4E8;
+      }
+      .btn-admin.btn-secondary:hover {
+        background: #F8F9FA;
+        border-color: #D1D5DA;
+      }
+      .btn-admin.btn-danger {
+        background: #DC3545;
+        color: #fff;
+      }
+      .btn-admin.btn-danger:hover {
+        background: #C82333;
+      }
+      .btn-admin.btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+
+      /* Modales rediseño */
+      .dh-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1500;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+      .dh-modal-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .dh-modal {
+        background: #FFFFFF;
+        border-radius: 8px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        color: #24292E;
+      }
+      .dh-modal.dh-modal-sm {
+        max-width: 400px;
+      }
+      .dh-modal .modal-header {
+        padding: 24px;
+        border-bottom: 1px solid #E1E4E8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .dh-modal .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #24292E;
+      }
+      .dh-modal .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #586069;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+      }
+      .dh-modal .modal-close:hover {
+        background: #F8F9FA;
+      }
+      .dh-modal .modal-body {
+        padding: 24px;
+      }
+      .dh-modal .modal-footer {
+        padding: 24px;
+        border-top: 1px solid #E1E4E8;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .dh-modal .form-group {
+        margin-bottom: 16px;
+      }
+      .dh-modal .form-group label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+        color: #24292E;
+        font-size: 14px;
+      }
+      .dh-modal .form-group input,
+      .dh-modal .form-group select,
+      .dh-modal .form-group textarea {
+        width: 100%;
+        padding: 8px 16px;
+        border: 1px solid #E1E4E8;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #24292E;
+        background: #FFFFFF;
+        font-family: inherit;
+      }
+      .dh-modal .form-group input:focus,
+      .dh-modal .form-group select:focus,
+      .dh-modal .form-group textarea:focus {
+        outline: none;
+        border-color: #0366D6;
+        box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+      }
+      .dh-modal .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .dh-modal .form-text {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #586069;
+      }
+      .dh-modal .text-muted {
+        color: #586069;
+        font-size: 14px;
+      }
+
+      /* Responsive admin */
+      @media (max-width: 1024px) {
+        .admin-sidebar { width: 60px; }
+        .admin-sidebar .nav-text,
+        .admin-sidebar .sidebar-header h1,
+        .admin-sidebar .user-info { display: none; }
+        .admin-sidebar .nav-item { justify-content: center; padding: 16px; }
+      }
+      @media (max-width: 768px) {
+        .admin-sidebar {
+          position: fixed;
+          z-index: 20;
+          height: 100dvh;
+          width: 240px;
+          transform: translateX(-100%);
+          box-shadow: 4px 0 12px rgba(0,0,0,0.1);
+        }
+        .admin-sidebar.open {
+          transform: translateX(0);
+        }
+        .admin-sidebar .nav-text,
+        .admin-sidebar .sidebar-header h1,
+        .admin-sidebar .user-info { display: initial; }
+        .admin-sidebar .nav-item { justify-content: flex-start; padding: 16px 24px; }
+        .admin-main .main-content { padding: 16px; }
+        .admin-main .hamburger-btn { display: block; }
+        .dh-modal { width: 95%; }
+        .dh-modal .form-row { grid-template-columns: 1fr; }
+      }
+
+      /* Update indicator (Fase 5) */
+      .update-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #0366D6;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 9999;
+        animation: dhSlideIn 0.3s ease;
+      }
+      .update-indicator.fade-out {
+        animation: dhFadeOut 0.3s ease;
+      }
+      @keyframes dhSlideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes dhFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
     </style>
   </head>
   <body>
@@ -3565,42 +4010,71 @@
 
     <div class="admin-overlay" id="adminOverlay" aria-hidden="true">
       <div class="admin-shell" role="dialog" aria-modal="true" aria-labelledby="adminPanelTitle">
-        <div class="admin-topbar">
-          <div class="admin-title">
-            <strong id="adminPanelTitle">Panel Admin</strong>
+        <aside class="admin-sidebar" id="adminSidebar">
+          <div class="sidebar-header">
+            <h1>🏠 DetailingHouse</h1>
           </div>
-          <button class="icon-btn" id="closeAdmin" type="button" aria-label="Cerrar panel">✕</button>
-        </div>
-        <div class="admin-body">
-          <div class="admin-login" id="adminLoginBox">
-            <h3>Acceso privado</h3>
-            <p>Entra como administrador o empleado según el nivel de acceso que necesites.</p>
-            <div class="form-row">
-              <label for="adminPassword">Contraseña</label>
-              <input id="adminPassword" type="password" placeholder="DH2025 o DH-STAFF" />
+          <nav class="sidebar-nav" id="adminSidebarNav">
+            <a href="#" class="nav-item active" data-tab="pos" data-roles="admin,staff">
+              <span class="nav-icon">🛒</span><span class="nav-text">POS</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="dashboard" data-roles="admin">
+              <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="inventario" data-roles="admin">
+              <span class="nav-icon">📦</span><span class="nav-text">Inventario</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="servicios" data-roles="admin">
+              <span class="nav-icon">🛍️</span><span class="nav-text">Servicios</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="clientes" data-roles="admin,staff">
+              <span class="nav-icon">👥</span><span class="nav-text">Clientes</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="agenda" data-roles="admin,staff">
+              <span class="nav-icon">📅</span><span class="nav-text">Agenda</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="caja" data-roles="admin">
+              <span class="nav-icon">💰</span><span class="nav-text">Caja Chica</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="nomina" data-roles="admin">
+              <span class="nav-icon">💼</span><span class="nav-text">Nómina</span>
+            </a>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="user-info">
+              <span id="roleBadge" class="role-badge">Sin sesión</span>
             </div>
-            <button class="btn btn-primary" id="adminLoginBtn" type="button">Entrar al panel</button>
-            <div class="role-hint">
-              <span class="role-pill admin">ADMIN · DH2025</span>
-              <span class="role-pill staff">EMPLEADO · DH-STAFF</span>
-            </div>
-            <div class="error-msg" id="adminError"></div>
+            <button class="nav-item logout-btn" id="adminLogoutBtn" type="button">
+              <span class="nav-icon">🚪</span><span class="nav-text">Cerrar sesión</span>
+            </button>
           </div>
+        </aside>
 
-          <div class="admin-panel" id="adminPanelApp">
-            <div class="tabs" id="adminTabs">
-              <button class="tab-btn active" type="button" data-tab="pos" data-roles="admin,staff">POS</button>
-              <button class="tab-btn" type="button" data-tab="inventario" data-roles="admin">INVENTARIO</button>
-              <button class="tab-btn" type="button" data-tab="caja" data-roles="admin">CAJA CHICA</button>
-              <button class="tab-btn" type="button" data-tab="clientes" data-roles="admin,staff">CLIENTES</button>
-              <button class="tab-btn" type="button" data-tab="nomina" data-roles="admin">NÓMINA</button>
-              <button class="tab-btn" type="button" data-tab="agenda" data-roles="admin,staff">AGENDA</button>
-              <button class="tab-btn" type="button" data-tab="dashboard" data-roles="admin">DASHBOARD</button>
-              <span class="role-badge" id="roleBadge">Sin sesión</span>
-              <button class="tab-btn" type="button" id="adminLogoutBtn">Cerrar sesión</button>
+        <main class="admin-main">
+          <header class="main-header">
+            <button class="hamburger-btn" id="hamburgerBtn" type="button" aria-label="Menú">☰</button>
+            <h2 id="pageTitle" class="page-title">POS</h2>
+            <button class="icon-btn" id="closeAdmin" type="button" aria-label="Cerrar panel" style="margin-left:auto">✕</button>
+          </header>
+
+          <div class="main-content">
+            <div class="admin-login" id="adminLoginBox">
+              <h3>Acceso privado</h3>
+              <p>Entra como administrador o empleado según el nivel de acceso que necesites.</p>
+              <div class="form-row">
+                <label for="adminPassword">Contraseña</label>
+                <input id="adminPassword" type="password" placeholder="DH2025 o DH-STAFF" />
+              </div>
+              <button class="btn btn-primary" id="adminLoginBtn" type="button">Entrar al panel</button>
+              <div class="role-hint">
+                <span class="role-pill admin">ADMIN · DH2025</span>
+                <span class="role-pill staff">EMPLEADO · DH-STAFF</span>
+              </div>
+              <div class="error-msg" id="adminError"></div>
             </div>
 
-            <section class="admin-panel active" id="tab-pos">
+            <div class="admin-panel" id="adminPanelApp">
+              <section class="admin-panel active" id="tab-pos">
 
               <!-- ===== Servicios rápidos (siempre a la mano) ===== -->
               <div class="pos-services-strip" aria-label="Servicios principales y secundarios">
@@ -3695,6 +4169,27 @@
                     <tr><th>SKU</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr>
                   </thead>
                   <tbody id="inventoryBody"></tbody>
+                </table>
+              </div>
+              <!-- FASE 3: CRUD rediseñado · tabla con editar + eliminar completo -->
+              <div class="admin-card" style="margin-top:1.5rem">
+                <h3>Gestión de catálogo (Fase 3)</h3>
+                <p class="text-muted" style="margin:0 0 0.5rem;color:#586069">Edita nombre, descripción, categoría, presentación o elimina un producto.</p>
+                <table class="data-table products-table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Nombre</th>
+                      <th>Categoría</th>
+                      <th>Precio</th>
+                      <th>Stock</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="productsTableBody">
+                    <tr><td colspan="7" style="text-align:center;color:#586069;padding:1rem">Cargando productos…</td></tr>
+                  </tbody>
                 </table>
               </div>
             </section>
@@ -3868,10 +4363,38 @@
                 <article class="list-panel"><h3 class="catalog-section-title">Últimas ventas</h3><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Items</th><th>Método</th><th>Total</th></tr></thead><tbody id="recentSalesBody"></tbody></table></div></article>
               </div>
             </section>
+
+            <section class="admin-panel" id="tab-servicios">
+              <div class="admin-section-header">
+                <h2>Servicios</h2>
+                <button class="btn-admin btn-primary" id="addServiceBtn" type="button">
+                  <span>+</span> Agregar servicio
+                </button>
+              </div>
+              <div class="admin-section-card">
+                <table class="data-table services-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Emoji</th>
+                      <th>Nombre</th>
+                      <th>Precio</th>
+                      <th>Categoría</th>
+                      <th>Duración</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="servicesTableBody">
+                    <tr><td colspan="8" style="text-align:center;color:#586069;padding:1rem">Cargando servicios…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </div>
+        </main>
       </div>
-    </div>
   <script src="assets/js/qrcode.min.js"></script>
   <script>
 (() => {
@@ -4344,7 +4867,7 @@
       const tile = event.target.closest('[data-strip-svc]');
       if (!tile) return;
       const id = tile.dataset.stripSvc;
-      const service = serviceCatalog.find(item => item.id === id);
+      const service = (state.services || []).find(it => it.id === id) || serviceCatalog.find(it => it.id === id);
       if (!service) return;
       addItemToCart({
         key: service.id, name: service.name,
@@ -4471,7 +4994,7 @@
           return haystack.includes(query);
         })
     );
-    const matchedServices = serviceCatalog.filter(item => {
+    const matchedServices = ((state.services && state.services.length) ? state.services : serviceCatalog).filter(item => {
       if (!query) return true;
       const haystack = `${item.name || ''} ${item.id || ''}`.toLowerCase();
       return haystack.includes(query);
@@ -4829,6 +5352,8 @@
     renderPosCatalog();
     renderCart();
     renderInventory();
+    renderProductsTable();   // FASE 3: tabla rediseñada
+    renderServicesTable();   // FASE 4: tabla de servicios
     renderClients();
     renderCash();
     renderPayroll();
@@ -4956,21 +5481,43 @@
     byId('roleBadge').textContent = role ? role.toUpperCase() : 'Sin sesión';
     byId('adminLoginBox').style.display = role ? 'none' : 'block';
     byId('adminPanelApp').classList.toggle('active', !!role);
-    document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => {
-      const allowed = (btn.dataset.roles || '').split(',').includes(role);
-      btn.style.display = allowed ? '' : 'none';
+    // FASE 2: filtro de visibilidad por rol en sidebar nav
+    document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]').forEach(item => {
+      const allowed = (item.dataset.roles || '').split(',').includes(role);
+      item.style.display = allowed ? '' : 'none';
     });
     if (!role) return;
-    const current = document.querySelector('#adminTabs .tab-btn.active[data-tab]');
+    const current = document.querySelector('#adminSidebarNav .nav-item.active[data-tab]');
     if (!current || current.style.display === 'none') {
-      const first = [...document.querySelectorAll('#adminTabs .tab-btn[data-tab]')].find(btn => btn.style.display !== 'none');
+      const first = [...document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]')].find(it => it.style.display !== 'none');
       if (first) activateTab(first.dataset.tab);
     }
   }
 
+  const TAB_TITLES = {
+    pos: 'POS',
+    dashboard: 'Dashboard',
+    inventario: 'Inventario',
+    servicios: 'Servicios',
+    clientes: 'Clientes',
+    agenda: 'Agenda',
+    caja: 'Caja Chica',
+    nomina: 'Nómina'
+  };
   function activateTab(tab) {
+    // FASE 2: sidebar
+    document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]').forEach(item => item.classList.toggle('active', item.dataset.tab === tab));
+    // Compatibilidad: si existiera la antigua barra de tabs, marcarla también
     document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    // Mostrar la sección correspondiente (mantiene .admin-panel para compatibilidad)
     document.querySelectorAll('.admin-panel[id^="tab-"]').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tab}`));
+    // Actualizar título del header
+    const title = byId('pageTitle');
+    if (title) title.textContent = TAB_TITLES[tab] || tab;
+    // En mobile, cerrar sidebar al navegar
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      byId('adminSidebar')?.classList.remove('open');
+    }
   }
 
   function bindAdminInteractions() {
@@ -4981,6 +5528,17 @@
     byId('closeAdmin')?.addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
     byId('adminLoginBtn')?.addEventListener('click', handleLogin);
     byId('adminLogoutBtn')?.addEventListener('click', handleLogout);
+    // FASE 2: clicks en sidebar nav + hamburger
+    document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]').forEach(item => {
+      item.addEventListener('click', e => {
+        e.preventDefault();
+        activateTab(item.dataset.tab);
+      });
+    });
+    byId('hamburgerBtn')?.addEventListener('click', () => {
+      byId('adminSidebar')?.classList.toggle('open');
+    });
+    // Legacy: por si quedara la barra de tabs antigua
     document.querySelectorAll('#adminTabs .tab-btn[data-tab]').forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
 
     // Catálogo POS
@@ -4988,7 +5546,7 @@
       const sid = e.target.dataset.addService;
       const sku = e.target.dataset.addProduct;
       if (sid) {
-        const service = serviceCatalog.find(item => item.id === sid);
+        const service = (state.services || []).find(it => it.id === sid) || serviceCatalog.find(it => it.id === sid);
         addItemToCart({ key: sid, sku: sid, name: service.name, price: finalPrice(service.price), type: 'service' }, byId(`posCatalog`)?.querySelector(`[data-qty-for="${sid}"]`)?.value);
       }
       if (sku) {
@@ -5148,7 +5706,396 @@
     byId('exportCsvBtn')?.addEventListener('click', exportCsv);
   }
 
-  // ── 14. Init ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // FASES 3-5: CRUD productos, CRUD servicios, cache invalidation
+  // IMPL-20260711-01
+  // ═══════════════════════════════════════════════════════════════
+
+  // ── Helpers ─────────────────────────────────────────────────────
+  const getStockClass = stock => {
+    const n = Number(stock) || 0;
+    if (n === 0) return 'stock-out';
+    if (n < 5)   return 'stock-low';
+    return 'stock-ok';
+  };
+  const getEmojiForService = id => ({
+    'SRV-001': '🚗', 'SRV-002': '✨', 'SRV-003': '🧼',
+    'SRV-004': '⚙️', 'SRV-005': '🛡️', 'SRV-006': '💡',
+    'SRV-007': '💺', 'SRV-008': '🌬️'
+  })[id] || '⭐';
+
+  // ── Estado: servicios (Fase 4) ──────────────────────────────────
+  state.services = state.services || [];
+
+  // ── Cache invalidation (Fase 5) ─────────────────────────────────
+  const CACHE_VERSION_KEY = 'dh_cache_version';
+  function invalidatePublicCache() {
+    const current = parseInt(localStorage.getItem(CACHE_VERSION_KEY) || '0', 10);
+    localStorage.setItem(CACHE_VERSION_KEY, String(current + 1));
+    window.dispatchEvent(new CustomEvent('cache-invalidated', { detail: { version: current + 1 } }));
+  }
+  function showUpdateIndicator() {
+    const ind = document.createElement('div');
+    ind.className = 'update-indicator';
+    ind.textContent = '🔄 Actualizando…';
+    document.body.appendChild(ind);
+    setTimeout(() => { ind.classList.add('fade-out'); setTimeout(() => ind.remove(), 320); }, 1000);
+  }
+  async function loadPublicData() {
+    try {
+      const [inv, svc] = await Promise.all([
+        api.request('/inventory').catch(() => null),
+        api.request('/services').catch(() => null)
+      ]);
+      if (Array.isArray(inv) && inv.length) state.inventory = mapInventory(inv);
+      if (Array.isArray(svc)) {
+        state.services = svc;
+        if (typeof renderServicesTable === 'function') renderServicesTable();
+        if (typeof updateServiceCatalog === 'function') updateServiceCatalog();
+      }
+      renderPublicProducts('todos');
+      if (typeof renderServicesStrip === 'function') renderServicesStrip();
+    } catch (e) {
+      console.warn('[CacheSync] reload falló:', e.message);
+    }
+  }
+  async function checkForUpdates() {
+    try {
+      const resp = await api.request('/inventory/last-update').catch(() => null);
+      if (!resp || typeof resp !== 'object') return;
+      const lastUpdate = resp.last_update || resp.lastUpdate || resp.timestamp || JSON.stringify(resp);
+      const currentLast = localStorage.getItem('dh_last_inventory_update');
+      if (lastUpdate && lastUpdate !== currentLast) {
+        localStorage.setItem('dh_last_inventory_update', lastUpdate);
+        showUpdateIndicator();
+        await loadPublicData();
+      }
+    } catch (e) {
+      console.warn('[CacheSync] check falló:', e.message);
+    }
+  }
+  function initPublicPageCacheSync() {
+    let pollingTimer = null;
+    const startPolling = () => {
+      if (pollingTimer) clearInterval(pollingTimer);
+      pollingTimer = setInterval(checkForUpdates, 60000);
+    };
+    const stopPolling = () => {
+      if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { stopPolling(); }
+      else { startPolling(); checkForUpdates(); }
+    });
+    startPolling();
+    window.addEventListener('storage', e => {
+      if (e.key === CACHE_VERSION_KEY) {
+        showUpdateIndicator();
+        loadPublicData();
+      }
+    });
+  }
+
+  // ── Render products table (Fase 3) ──────────────────────────────
+  function renderProductsTable() {
+    const tbody = byId('productsTableBody');
+    if (!tbody) return;
+    if (!state.inventory.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#586069;padding:1rem">No hay productos en el catálogo.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = state.inventory.map(product => {
+      const stock = Number(product.stock) || 0;
+      const stockCls = getStockClass(stock);
+      const active = product.active !== false;
+      return `
+        <tr data-sku="${escapeHtml(product.sku)}">
+          <td><code>${escapeHtml(product.sku)}</code></td>
+          <td><strong>${escapeHtml(product.name || '—')}</strong></td>
+          <td><span class="badge badge-category">${escapeHtml(product.categoryLabel || product.category || '—')}</span></td>
+          <td>${formatCurrency(product.price)}</td>
+          <td><span class="stock-indicator ${stockCls}">${stock}</span></td>
+          <td><span class="status-badge ${active ? 'status-active' : 'status-inactive'}">${active ? '✅ Activo' : '❌ Inactivo'}</span></td>
+          <td class="actions">
+            <button class="btn-admin btn-sm btn-secondary" data-edit="${escapeHtml(product.sku)}" type="button">Editar</button>
+            <button class="btn-admin btn-sm btn-danger" data-delete="${escapeHtml(product.sku)}" type="button">Eliminar</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Render services table (Fase 4) ──────────────────────────────
+  function renderServicesTable() {
+    const tbody = byId('servicesTableBody');
+    if (!tbody) return;
+    if (!state.services || !state.services.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#586069;padding:1rem">No hay servicios definidos.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = state.services.map(service => {
+      const active = service.active !== false;
+      return `
+        <tr data-id="${escapeHtml(service.id)}">
+          <td><code>${escapeHtml(service.id)}</code></td>
+          <td style="font-size:22px;text-align:center">${escapeHtml(service.emoji || getEmojiForService(service.id))}</td>
+          <td><strong>${escapeHtml(service.name || '—')}</strong></td>
+          <td>${formatCurrency(service.price)}</td>
+          <td><span class="badge badge-${escapeHtml(service.category || 'secundario')}">${(service.category || 'secundario').charAt(0).toUpperCase() + (service.category || 'secundario').slice(1)}</span></td>
+          <td>${service.duration ? `${service.duration} min` : '—'}</td>
+          <td><span class="status-badge ${active ? 'status-active' : 'status-inactive'}">${active ? '✅ Activo' : '❌ Inactivo'}</span></td>
+          <td class="actions">
+            <button class="btn-admin btn-sm btn-secondary" data-edit-service="${escapeHtml(service.id)}" type="button">Editar</button>
+            <button class="btn-admin btn-sm btn-danger" data-delete-service="${escapeHtml(service.id)}" type="button">Eliminar</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Load services desde backend (Fase 4) ───────────────────────
+  async function loadServices() {
+    try {
+      const services = await api.request('/services');
+      state.services = Array.isArray(services) ? services : [];
+    } catch (e) {
+      console.warn('[Services] usando fallback local (constante serviceCatalog):', e.message);
+      // Fallback a constante hardcoded si la API muere (compatibilidad offline-first)
+      state.services = serviceCatalog.map(s => ({
+        id: s.id, name: s.name, price: s.price, type: 'service',
+        emoji: getEmojiForService(s.id),
+        category: ['SRV-001','SRV-002','SRV-003'].includes(s.id) ? 'principal' : 'secundario',
+        duration: null,
+        description: '',
+        active: true
+      }));
+    }
+    renderServicesTable();
+    updateServiceCatalog();
+    // Si el POS está visible, refrescar el strip
+    if (byId('tab-pos')?.classList.contains('active') && typeof renderServicesStrip === 'function') {
+      renderServicesStrip();
+    }
+  }
+
+  // ── Sincroniza window.serviceCatalog para el POS (Fase 4) ───────
+  function updateServiceCatalog() {
+    if (!Array.isArray(state.services) || !state.services.length) return;
+    window.serviceCatalog = state.services
+      .filter(s => s.active !== false)
+      .map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' }));
+  }
+
+  // ── Render POS services strip (override Fase 4) ─────────────────
+  // Esta redefinición lee de state.services; la API ya la habrá cargado.
+  function renderServicesStrip() {
+    const wrap = byId('posServicesGrid');
+    if (!wrap) return;
+    const list = (Array.isArray(state.services) && state.services.length)
+      ? state.services.filter(s => s.active !== false)
+      : serviceCatalog;
+    const tiles = list.map(item => {
+      const emoji = item.emoji || getEmojiForService(item.id);
+      const isMain = item.category === 'principal' || ['SRV-001','SRV-002','SRV-003'].includes(item.id);
+      return `
+        <button type="button" class="svc-tile${isMain ? '' : ' is-secondary'}" data-strip-svc="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.name)}">
+          <span class="svc-emoji">${emoji}</span>
+          <span class="svc-name">${escapeHtml(item.name)}</span>
+          <span class="svc-price">${formatCurrency(finalPrice(item.price))}</span>
+          <span class="svc-tag">${isMain ? 'Principal' : 'Secundario'}</span>
+        </button>`;
+    }).join('');
+    wrap.innerHTML = tiles;
+  }
+
+  // ── CRUD PRODUCTOS handlers (Fase 3) ────────────────────────────
+  function openEditProductModal(sku) {
+    const product = state.inventory.find(p => p.sku === sku);
+    if (!product) return;
+    byId('editProductSku').value         = product.sku;
+    byId('editProductName').value        = product.name || '';
+    byId('editProductPrice').value       = product.price || 0;
+    byId('editProductStock').value       = product.stock || 0;
+    byId('editProductCategory').value    = product.category || 'especiales';
+    byId('editProductPresentation').value= product.presentation || '';
+    byId('editProductDescription').value = product.description || '';
+    byId('editProductImageUrl').value    = product.image_url || '';
+    byId('editProductModal').classList.add('open');
+  }
+  function openDeleteProductModal(sku) {
+    const product = state.inventory.find(p => p.sku === sku);
+    if (!product) return;
+    byId('deleteProductSku').textContent  = product.sku;
+    byId('deleteProductName').textContent= product.name || '—';
+    byId('deleteProductModal').classList.add('open');
+  }
+
+  // ── CRUD SERVICIOS handlers (Fase 4) ────────────────────────────
+  function openServiceModal(mode, id) {
+    byId('serviceForm').reset();
+    byId('serviceMode').value = mode;
+    const idInput = byId('serviceIdInput');
+    if (mode === 'edit') {
+      const svc = state.services.find(s => s.id === id);
+      if (!svc) return;
+      byId('serviceModalTitle').textContent = 'Editar servicio';
+      idInput.value = svc.id; idInput.disabled = true;
+      byId('serviceName').value         = svc.name || '';
+      byId('servicePrice').value        = svc.price || 0;
+      byId('serviceDuration').value     = svc.duration || '';
+      byId('serviceEmoji').value        = svc.emoji || '';
+      byId('serviceCategory').value     = svc.category || 'secundario';
+      byId('serviceDescription').value  = svc.description || '';
+    } else {
+      byId('serviceModalTitle').textContent = 'Agregar servicio';
+      idInput.disabled = false;
+    }
+    byId('serviceModal').classList.add('open');
+  }
+
+  // ── Bind CRUD listeners (delegado, una sola vez) ────────────────
+  function bindCrudInteractions() {
+    // Delegación: clicks en botones [data-edit] / [data-delete] en tabla productos
+    byId('productsTableBody')?.addEventListener('click', e => {
+      const editBtn   = e.target.closest('[data-edit]');
+      const deleteBtn = e.target.closest('[data-delete]');
+      if (editBtn)   { openEditProductModal(editBtn.dataset.edit); return; }
+      if (deleteBtn) { openDeleteProductModal(deleteBtn.dataset.delete); }
+    });
+
+    // Guardar cambios producto
+    byId('saveProductBtn')?.addEventListener('click', async () => {
+      const sku = byId('editProductSku').value;
+      const data = {
+        name:          byId('editProductName').value.trim(),
+        price:         Number(byId('editProductPrice').value),
+        stock:         Math.max(0, parseInt(byId('editProductStock').value, 10) || 0),
+        category:      byId('editProductCategory').value,
+        category_label: byId('editProductCategory').selectedOptions[0]?.textContent || '',
+        presentation:  byId('editProductPresentation').value.trim(),
+        description:   byId('editProductDescription').value.trim(),
+        image_url:     byId('editProductImageUrl').value.trim()
+      };
+      if (!data.name) { dhAdminToast('El nombre es requerido', 'error'); return; }
+      if (data.price < 0) { dhAdminToast('El precio no puede ser negativo', 'error'); return; }
+      try {
+        const result = await api.request(`/inventory/${encodeURIComponent(sku)}`, { method: 'PATCH', body: JSON.stringify(data) });
+        if (!result) throw new Error('Sin respuesta del servidor');
+        const idx = state.inventory.findIndex(p => p.sku === sku);
+        if (idx !== -1) state.inventory[idx] = { ...state.inventory[idx], ...data, categoryLabel: data.category_label || state.inventory[idx].categoryLabel };
+        byId('editProductModal').classList.remove('open');
+        renderProductsTable();
+        renderPublicProducts('todos');
+        invalidatePublicCache();
+        dhAdminToast('Producto actualizado correctamente', 'success');
+      } catch (err) {
+        dhAdminToast('Error al actualizar: ' + err.message, 'error');
+      }
+    });
+
+    // Eliminar producto
+    byId('confirmDeleteBtn')?.addEventListener('click', async () => {
+      const sku = byId('deleteProductSku').textContent;
+      try {
+        await api.request(`/inventory/${encodeURIComponent(sku)}`, { method: 'DELETE' });
+        state.inventory = state.inventory.filter(p => p.sku !== sku);
+        byId('deleteProductModal').classList.remove('open');
+        renderProductsTable();
+        renderPublicProducts('todos');
+        invalidatePublicCache();
+        dhAdminToast('Producto eliminado correctamente', 'success');
+      } catch (err) {
+        dhAdminToast('Error al eliminar: ' + err.message, 'error');
+      }
+    });
+
+    // Agregar servicio
+    byId('addServiceBtn')?.addEventListener('click', () => openServiceModal('create'));
+
+    // Tabla servicios: edit/delete delegados
+    byId('servicesTableBody')?.addEventListener('click', e => {
+      const editBtn   = e.target.closest('[data-edit-service]');
+      const deleteBtn = e.target.closest('[data-delete-service]');
+      if (editBtn)   { openServiceModal('edit', editBtn.dataset.editService); return; }
+      if (deleteBtn) {
+        const svc = state.services.find(s => s.id === deleteBtn.dataset.deleteService);
+        if (!svc) return;
+        byId('deleteServiceId').textContent  = svc.id;
+        byId('deleteServiceName').textContent= svc.name || '—';
+        byId('deleteServiceModal').classList.add('open');
+      }
+    });
+
+    // Guardar servicio (create/edit)
+    byId('saveServiceBtn')?.addEventListener('click', async () => {
+      const mode = byId('serviceMode').value;
+      const id   = byId('serviceIdInput').value.trim();
+      const data = {
+        name:        byId('serviceName').value.trim(),
+        price:       Number(byId('servicePrice').value),
+        duration:    byId('serviceDuration').value ? parseInt(byId('serviceDuration').value, 10) : null,
+        emoji:       byId('serviceEmoji').value.trim(),
+        category:    byId('serviceCategory').value,
+        description: byId('serviceDescription').value.trim()
+      };
+      if (!/^SRV-\d{3}$/.test(id))     { dhAdminToast('ID inválido. Formato: SRV-XXX', 'error'); return; }
+      if (!data.name)                   { dhAdminToast('El nombre es requerido', 'error'); return; }
+      if (data.price < 0)               { dhAdminToast('El precio no puede ser negativo', 'error'); return; }
+      try {
+        if (mode === 'create') {
+          const result = await api.request('/services', { method: 'POST', body: JSON.stringify({ id, ...data }) });
+          state.services.push({ id, ...data, active: true });
+          dhAdminToast('Servicio creado correctamente', 'success');
+        } else {
+          await api.request(`/services/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) });
+          const idx = state.services.findIndex(s => s.id === id);
+          if (idx !== -1) state.services[idx] = { ...state.services[idx], ...data };
+          dhAdminToast('Servicio actualizado correctamente', 'success');
+        }
+        byId('serviceModal').classList.remove('open');
+        renderServicesTable();
+        updateServiceCatalog();
+        renderServicesStrip();
+        invalidatePublicCache();
+      } catch (err) {
+        dhAdminToast('Error al guardar servicio: ' + err.message, 'error');
+      }
+    });
+
+    // Eliminar servicio
+    byId('confirmDeleteServiceBtn')?.addEventListener('click', async () => {
+      const id = byId('deleteServiceId').textContent;
+      try {
+        await api.request(`/services/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        state.services = state.services.filter(s => s.id !== id);
+        byId('deleteServiceModal').classList.remove('open');
+        renderServicesTable();
+        updateServiceCatalog();
+        renderServicesStrip();
+        invalidatePublicCache();
+        dhAdminToast('Servicio eliminado correctamente', 'success');
+      } catch (err) {
+        dhAdminToast('Error al eliminar: ' + err.message, 'error');
+      }
+    });
+
+    // Modal close (data-close-modal) delegado en document
+    document.addEventListener('click', e => {
+      const closer = e.target.closest('[data-close-modal]');
+      if (!closer) return;
+      const modal = closer.closest('.dh-modal-overlay');
+      if (modal) modal.classList.remove('open');
+    });
+    // Cerrar modal al hacer click fuera (backdrop)
+    document.addEventListener('click', e => {
+      if (!e.target.classList?.contains('dh-modal-overlay')) return;
+      e.target.classList.remove('open');
+    });
+    // ESC cierra modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.querySelectorAll('.dh-modal-overlay.open').forEach(m => m.classList.remove('open'));
+    });
+  }
+
+
   async function init() {
     // Restaurar token JWT si existe
     const savedToken = api.restoreToken();
@@ -5159,6 +6106,8 @@
       } catch (e) { api.logout(); }
     }
     await loadState();
+    // Cargar servicios desde backend (Fase 4) — antes de cualquier render de POS
+    await loadServices();
     // Render público (siempre)
     renderPublicProducts('todos');
     renderServicesStrip();
@@ -5166,12 +6115,16 @@
     bindPublicInteractions();
     // Bind admin (handlers de las 7 tabs)
     bindAdminInteractions();
+    // Bind CRUD productos/servicios + modal close (Fase 3-4)
+    bindCrudInteractions();
     // UI admin (login box vs panel)
     syncRoleUI();
     // Render admin inicial
     updateAll();
     // Activar POS por defecto
     activateTab('pos');
+    // Sync de cache público (Fase 5)
+    initPublicPageCacheSync();
     // Si no hay sesión, abrir login overlay automáticamente
     if (!state.role) {
       byId('openAdmin')?.click();
@@ -5182,5 +6135,155 @@
 })();  </script>
   <div id="adminToasts"></div>
   <div id="adminModals"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MODALES REDISEÑO (Fases 3-4) IMPL-20260711-01
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="dh-modal-overlay" id="editProductModal">
+    <div class="dh-modal">
+      <div class="modal-header">
+        <h3>Editar producto</h3>
+        <button class="modal-close" data-close-modal type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editProductForm">
+          <input type="hidden" id="editProductSku" />
+          <div class="form-group">
+            <label for="editProductName">Nombre *</label>
+            <input type="text" id="editProductName" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editProductPrice">Precio *</label>
+              <input type="number" id="editProductPrice" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label for="editProductStock">Stock *</label>
+              <input type="number" id="editProductStock" min="0" step="1" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editProductCategory">Categoría *</label>
+            <select id="editProductCategory" required>
+              <option value="interiores">INTERIORES</option>
+              <option value="rines-y-llantas">RINES Y LLANTAS</option>
+              <option value="shampoos">SHAMPOOS</option>
+              <option value="ceramica">CERÁMICA</option>
+              <option value="ceras">CERAS</option>
+              <option value="molduras">MOLDURAS</option>
+              <option value="especiales">ESPECIALES</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editProductPresentation">Presentación</label>
+            <input type="text" id="editProductPresentation" placeholder="600ml, 1L, etc." />
+          </div>
+          <div class="form-group">
+            <label for="editProductDescription">Descripción</label>
+            <textarea id="editProductDescription" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="editProductImageUrl">URL de imagen</label>
+            <input type="url" id="editProductImageUrl" placeholder="https://..." />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-admin btn-secondary" data-close-modal type="button">Cancelar</button>
+        <button class="btn-admin btn-primary" id="saveProductBtn" type="button">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dh-modal-overlay" id="deleteProductModal">
+    <div class="dh-modal dh-modal-sm">
+      <div class="modal-header">
+        <h3>Confirmar eliminación</h3>
+        <button class="modal-close" data-close-modal type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar este producto?</p>
+        <p><strong id="deleteProductSku"></strong> · <span id="deleteProductName"></span></p>
+        <p class="text-muted">Esta acción no se puede deshacer. El producto quedará inactivo.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-admin btn-secondary" data-close-modal type="button">Cancelar</button>
+        <button class="btn-admin btn-danger" id="confirmDeleteBtn" type="button">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dh-modal-overlay" id="serviceModal">
+    <div class="dh-modal">
+      <div class="modal-header">
+        <h3 id="serviceModalTitle">Agregar servicio</h3>
+        <button class="modal-close" data-close-modal type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="serviceForm">
+          <input type="hidden" id="serviceMode" value="create" />
+          <div class="form-group">
+            <label for="serviceIdInput">ID *</label>
+            <input type="text" id="serviceIdInput" placeholder="SRV-009" pattern="SRV-\d{3}" required />
+            <small class="form-text">Formato: SRV-XXX (ejemplo: SRV-009)</small>
+          </div>
+          <div class="form-group">
+            <label for="serviceName">Nombre *</label>
+            <input type="text" id="serviceName" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="servicePrice">Precio *</label>
+              <input type="number" id="servicePrice" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label for="serviceDuration">Duración (minutos)</label>
+              <input type="number" id="serviceDuration" min="0" step="1" placeholder="60" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="serviceEmoji">Emoji</label>
+              <input type="text" id="serviceEmoji" maxlength="2" placeholder="🚗" />
+            </div>
+            <div class="form-group">
+              <label for="serviceCategory">Categoría *</label>
+              <select id="serviceCategory" required>
+                <option value="principal">Principal</option>
+                <option value="secundario">Secundario</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="serviceDescription">Descripción</label>
+            <textarea id="serviceDescription" rows="4"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-admin btn-secondary" data-close-modal type="button">Cancelar</button>
+        <button class="btn-admin btn-primary" id="saveServiceBtn" type="button">Guardar</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="dh-modal-overlay" id="deleteServiceModal">
+    <div class="dh-modal dh-modal-sm">
+      <div class="modal-header">
+        <h3>Confirmar eliminación</h3>
+        <button class="modal-close" data-close-modal type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar este servicio?</p>
+        <p><strong id="deleteServiceId"></strong> · <span id="deleteServiceName"></span></p>
+        <p class="text-muted">Esta acción no se puede deshacer. El servicio quedará inactivo.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-admin btn-secondary" data-close-modal type="button">Cancelar</button>
+        <button class="btn-admin btn-danger" id="confirmDeleteServiceBtn" type="button">Eliminar</button>
+      </div>
+    </div>
+  </div>
   </body>
 </html>
