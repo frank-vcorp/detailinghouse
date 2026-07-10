@@ -4648,40 +4648,38 @@
       const input = byId(`pct${name}`); if (input) input.value = state.payrollCfg[name];
     });
     const range = byId('payrollRange')?.value || 'weekly';
-    // FIX-20260710-05: intentar usar cortes del server primero. Fallback a local si falla o vacío.
-    let base;
-    let serverCuts = [];
+    // FIX-20260710-05: intentar usar cortes del server primero. Fallback a local si falla o sin sesión.
+    const renderWithBase = (base) => {
+      const summary = byId('payrollSummary');
+      if (summary) {
+        summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
+      }
+      const body = byId('payrollCutsBody');
+      if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+    };
+    // Sin sesión activa: usar local (evita 401 en consola)
+    if (!apiToken) {
+      renderWithBase(getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0));
+      return;
+    }
+    // Con sesión: intentar server primero
     api.getPayroll(range).then(serverCutsResp => {
-      serverCuts = serverCutsResp || [];
+      const serverCuts = serverCutsResp || [];
       if (serverCuts.length > 0) {
-        // Usar el total del primer corte del server como base
         const cut = serverCuts[0];
-        base = Number(cut.totalSales || cut.total_sales || cut.base || 0);
-        // Sincronizar state.payrollCuts con los del server
+        const base = Number(cut.totalSales || cut.total_sales || cut.base || 0);
         state.payrollCuts = serverCuts.map(c => ({
           id: c.id, timestamp: c.created_at || c.timestamp || new Date().toISOString(),
           range: c.range || range, base: Number(c.base || c.totalSales || c.total_sales || 0),
-          total: Number(c.total || (c.base * (cut.Andres + cut.Erika + cut.Local) / 100) || 0)
+          total: Number(c.total || 0)
         }));
+        renderWithBase(base);
       } else {
-        // Fallback a cálculo local
-        base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+        renderWithBase(getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0));
       }
-      const summary = byId('payrollSummary');
-      if (summary) {
-        summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
-      }
-      const body = byId('payrollCutsBody');
-      if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
     }).catch(e => {
       console.warn('[API] getPayroll falló, usando cálculo local:', e.message);
-      base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
-      const summary = byId('payrollSummary');
-      if (summary) {
-        summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
-      }
-      const body = byId('payrollCutsBody');
-      if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+      renderWithBase(getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0));
     });
   }
 
@@ -4747,10 +4745,14 @@
   }
 
   function renderDashboard() {
-    // FIX-20260710-06: intentar usar dashboard del server primero. Fallback a local si falla.
+    // FIX-20260710-06: intentar usar dashboard del server primero. Fallback a local si falla o sin sesión.
+    if (!apiToken) {
+      renderDashboardLocal();
+      renderDashboardRest();
+      return;
+    }
     api.getDashboard().then(dashData => {
       if (dashData && typeof dashData === 'object' && dashData.today) {
-        // Usar datos del server
         const today = dashData.today || {};
         const clientsToday = dashData.clients_today || 0;
         const todayRevenue = Number(today.revenue || 0);
@@ -4761,7 +4763,6 @@
         byId('dashClientsToday').textContent = String(clientsToday);
         byId('dashAvgTicket').textContent    = formatCurrency(avg);
       } else {
-        // Fallback a local
         renderDashboardLocal();
       }
       renderDashboardRest();
