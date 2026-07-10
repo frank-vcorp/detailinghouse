@@ -97,8 +97,17 @@
 | `FIX-20260710-09` | Reemplazar QR SVG decorativo por QR real (lib qrcode.js) | Baja | `ARCH-20260710-01` §4 | pendiente |
 | `FIX-20260710-10` | Poda de HTML estático para cumplir meta CA-9 (≤ 4,250 líneas) | Baja | `FIX-20260710-01` desviación | pendiente |
 | `FIX-20260710-11` | Añadir `DELETE /sales/:id` al backend (para limpiar ventas de prueba) | Media | sprint actual | pendiente |
-| `FIX-20260710-13` | **Push a GitHub** del commit `6cd4a1f` (CORS) y `d92239d` (gitignore) | Media | sprint actual | pendiente (bloqueado por credenciales, deploy via Vercel CLI ya aplicado) |
 | `FIX-20260710-14` | Limpiar 2 ventas de prueba en Railway DB (id `51261b99-...` y nueva) | Media | sprint actual | pendiente |
+
+### 🔐 Setup de autenticación (documentado 2026-07-10)
+
+**Método activo:** SSH key + `gh auth login` con keyring
+- **Key:** `~/.ssh/id_ed25519` (privada) + `~/.ssh/id_ed25519.pub` (pública, ya en GitHub)
+- **Fingerprint:** `SHA256:4ZHXbtRFP9JVr98c+AhLm32AtCgzVcXB16k7r9rawjY`
+- **Título en GitHub:** `contabo vps`
+- **Remote URL:** `git@github.com:frank-vcorp/detailinghouse.git` (cambiado de HTTPS a SSH)
+- **Token scopes:** `admin:public_key, gist, read:org, repo`
+- **PASO PENDIENTE DE SEGURIDAD:** revocar el PAT classic que se expuso en chat de Kilo durante el onboarding. Crear reemplazo fine-grained solo para `detailinghouse` (Contents: read+write).
 
 ### [ ] Pendiente — Deuda técnica priorizada
 
