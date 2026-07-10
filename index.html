@@ -3872,6 +3872,7 @@
         </div>
       </div>
     </div>
+  <script src="assets/js/qrcode.min.js"></script>
   <script>
 (() => {
   /* ════════════════════════════════════════════════════════════════
@@ -4011,18 +4012,21 @@
     },
     logout()        { apiToken = null; apiUser = null; localStorage.removeItem('dh_jwt'); },
     restoreToken()  { const t = localStorage.getItem('dh_jwt'); if (t) apiToken = t; return t; },
-    // Inventory (métodos vivos; los 6 métodos muertos de la auditoría previa
-    // — updatePrice, patchProduct, updateClient, addPoints, getDashboard,
-    // getPayroll — fueron eliminados en FIX-20260710-01)
+    // Inventory (FIX-20260710-01 eliminó 6 métodos muertos; FIX-20260710-04/05/06
+    // re-añade los 3 que SÍ se usan: addPoints, getPayroll, getDashboard)
     getInventory:  () => api.request('/inventory'),
     updateStock:   (sku, stock) => api.request(`/inventory/${sku}/stock`, { method: 'PUT',  body: JSON.stringify({ stock }) }),
     addProduct:    (data)       => api.request('/inventory',           { method: 'POST', body: JSON.stringify(data) }),
     // Clients
     getClients:    () => api.request('/clients'),
     addClient:     (data) => api.request('/clients', { method: 'POST', body: JSON.stringify(data) }),
+    // FIX-20260710-04: persistir puntos vía API (el backend espera {delta: N})
+    addPoints:     (id, delta) => api.request(`/clients/${id}/points`, { method: 'POST', body: JSON.stringify({ delta }) }),
     // Sales
     getSales:      () => api.request('/sales'),
     registerSale:  (data) => api.request('/sales', { method: 'POST', body: JSON.stringify(data) }),
+    // FIX-20260710-06: dashboard server-side (devuelve {today, week, month, chart, clients_today, low_stock})
+    getDashboard:  () => api.request('/sales/dashboard'),
     // Appointments
     getAppointments:    () => api.request('/appointments'),
     addAppointment:     (data) => api.request('/appointments', { method: 'POST', body: JSON.stringify(data) }),
@@ -4034,6 +4038,8 @@
     addMovement:   (data)   => api.request('/cash/movement', { method: 'POST', body: JSON.stringify(data) }),
     closeCash:     ()       => api.request('/cash/close',    { method: 'POST' }),
     generateCut:   (range)  => api.request('/cash/payroll/cut', { method: 'POST', body: JSON.stringify({ range }) }),
+    // FIX-20260710-05: payroll server-side (devuelve array de cortes generados)
+    getPayroll:    (range)  => api.request(`/cash/payroll?range=${range}`),
   };
 
   // ── 5. Estado único (SOT) ─────────────────────────────────────────
@@ -4599,18 +4605,30 @@
     }
   }
 
+  // FIX-20260710-09: QR real con librería qrcode-generator (vendored, no CDN)
+  // Antes era un patrón pseudo-aleatorio decorativo (no escaneable).
   function qrSvg(text) {
-    let seed = [...text].reduce((a, c) => a + c.charCodeAt(0), 17);
-    let cells = '';
-    for (let y = 0; y < 9; y += 1) {
-      for (let x = 0; x < 9; x += 1) {
-        seed = (seed * 9301 + 49297) % 233280;
-        if (seed / 233280 > 0.5 || (x < 2 && y < 2) || (x > 6 && y < 2) || (x < 2 && y > 6)) {
-          cells += `<rect x="${x * 8}" y="${y * 8}" width="8" height="8" fill="#111827"></rect>`;
+    try {
+      // qrcode-generator expone window.qrcode como función
+      const qr = window.qrcode(0, 'M'); // typeNumber 0 = auto, error correction 'M' (Medium ~15%)
+      qr.addData(String(text || ''));
+      qr.make();
+      return qr.createSvgTag({ cellSize: 3, margin: 1, scalable: true });
+    } catch (e) {
+      console.warn('[QR] Error generando QR, fallback a placeholder:', e.message);
+      // Fallback al placeholder viejo si la lib falla
+      let seed = [...String(text || '')].reduce((a, c) => a + c.charCodeAt(0), 17);
+      let cells = '';
+      for (let y = 0; y < 9; y += 1) {
+        for (let x = 0; x < 9; x += 1) {
+          seed = (seed * 9301 + 49297) % 233280;
+          if (seed / 233280 > 0.5 || (x < 2 && y < 2) || (x > 6 && y < 2) || (x < 2 && y > 6)) {
+            cells += `<rect x="${x * 8}" y="${y * 8}" width="8" height="8" fill="#111827"></rect>`;
+          }
         }
       }
+      return `<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
     }
-    return `<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
   }
 
   function getRangeSales(range) {
@@ -4630,14 +4648,41 @@
       const input = byId(`pct${name}`); if (input) input.value = state.payrollCfg[name];
     });
     const range = byId('payrollRange')?.value || 'weekly';
-    const salesRange = getRangeSales(range);
-    const base = salesRange.reduce((sum, sale) => sum + sale.total, 0);
-    const summary = byId('payrollSummary');
-    if (summary) {
-      summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
-    }
-    const body = byId('payrollCutsBody');
-    if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+    // FIX-20260710-05: intentar usar cortes del server primero. Fallback a local si falla o vacío.
+    let base;
+    let serverCuts = [];
+    api.getPayroll(range).then(serverCutsResp => {
+      serverCuts = serverCutsResp || [];
+      if (serverCuts.length > 0) {
+        // Usar el total del primer corte del server como base
+        const cut = serverCuts[0];
+        base = Number(cut.totalSales || cut.total_sales || cut.base || 0);
+        // Sincronizar state.payrollCuts con los del server
+        state.payrollCuts = serverCuts.map(c => ({
+          id: c.id, timestamp: c.created_at || c.timestamp || new Date().toISOString(),
+          range: c.range || range, base: Number(c.base || c.totalSales || c.total_sales || 0),
+          total: Number(c.total || (c.base * (cut.Andres + cut.Erika + cut.Local) / 100) || 0)
+        }));
+      } else {
+        // Fallback a cálculo local
+        base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+      }
+      const summary = byId('payrollSummary');
+      if (summary) {
+        summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
+      }
+      const body = byId('payrollCutsBody');
+      if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+    }).catch(e => {
+      console.warn('[API] getPayroll falló, usando cálculo local:', e.message);
+      base = getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0);
+      const summary = byId('payrollSummary');
+      if (summary) {
+        summary.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Socio</th><th>%</th><th>Ventas base</th><th>Monto correspondiente</th></tr></thead><tbody>${Object.entries(state.payrollCfg).map(([name,pct]) => `<tr><td>${name}</td><td>${pct}%</td><td>${formatCurrency(base)}</td><td>${formatCurrency(base * pct / 100)}</td></tr>`).join('')}</tbody></table></div>`;
+      }
+      const body = byId('payrollCutsBody');
+      if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
+    });
   }
 
   function serviceClass(name) {
@@ -4702,6 +4747,32 @@
   }
 
   function renderDashboard() {
+    // FIX-20260710-06: intentar usar dashboard del server primero. Fallback a local si falla.
+    api.getDashboard().then(dashData => {
+      if (dashData && typeof dashData === 'object' && dashData.today) {
+        // Usar datos del server
+        const today = dashData.today || {};
+        const clientsToday = dashData.clients_today || 0;
+        const todayRevenue = Number(today.revenue || 0);
+        const todayCount = Number(today.count || 0);
+        const avg = todayCount > 0 ? todayRevenue / todayCount : 0;
+        byId('dashSalesToday').textContent   = String(todayCount);
+        byId('dashNetToday').textContent     = formatCurrency(todayRevenue);
+        byId('dashClientsToday').textContent = String(clientsToday);
+        byId('dashAvgTicket').textContent    = formatCurrency(avg);
+      } else {
+        // Fallback a local
+        renderDashboardLocal();
+      }
+      renderDashboardRest();
+    }).catch(e => {
+      console.warn('[API] getDashboard falló, usando cálculo local:', e.message);
+      renderDashboardLocal();
+      renderDashboardRest();
+    });
+  }
+
+  function renderDashboardLocal() {
     const todaySales   = state.sales.filter(s => isToday(s.timestamp));
     const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
     const openCash     = activeCash();
@@ -4712,6 +4783,11 @@
     byId('dashNetToday').textContent     = formatCurrency(todayRevenue - expenses);
     byId('dashClientsToday').textContent = String(clientsToday);
     byId('dashAvgTicket').textContent    = formatCurrency(avg);
+  }
+
+  function renderDashboardRest() {
+    const openCash     = activeCash();
+    const expenses     = openCash ? openCash.expenses.reduce((sum, e) => sum + e.amount, 0) : 0;
     const itemMap = {}; const serviceMap = {}; const productMap = {};
     state.sales.forEach(sale => sale.items.forEach(item => { itemMap[item.name] = (itemMap[item.name] || 0) + item.qty; if (item.type === 'service') serviceMap[item.name] = (serviceMap[item.name] || 0) + item.qty; else productMap[item.name] = (productMap[item.name] || 0) + item.qty; }));
     byId('topServicesList').innerHTML = Object.entries(serviceMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name, qty]) => `<li><span>${name}</span><strong>${qty}</strong></li>`).join('') || '<li class="muted">Sin datos todavía.</li>';
@@ -4808,7 +4884,26 @@
       state.sales.unshift(sale);
       state.lastSale = sale;
       if (sale.clientId) {
-        state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: client.points + Math.floor(sale.total / 100) } : client);
+        // FIX-20260710-04: persistir puntos vía API. Fallback a local si falla.
+        const pointsDelta = Math.floor(sale.total / 100);
+        try {
+          await api.addPoints(sale.clientId, pointsDelta);
+          // Refetch clientes para sincronizar puntos del server
+          const freshClients = await api.getClients().catch(() => null);
+          if (freshClients) {
+            state.clients = freshClients.map(c => ({
+              id: c.id, name: c.name, phone: c.phone || '',
+              carType: c.car_type || c.carType || '', notes: c.notes || '',
+              points: c.points || 0
+            }));
+          } else {
+            // Fallback local si getClients falla
+            state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: (client.points || 0) + pointsDelta } : client);
+          }
+        } catch (e) {
+          console.warn(`[API] addPoints falló para ${sale.clientId}, usando fallback local:`, e.message);
+          state.clients = state.clients.map(client => client.id === sale.clientId ? { ...client, points: (client.points || 0) + pointsDelta } : client);
+        }
       }
       state.cart.length = 0;
       if (success) success.textContent = 'Venta registrada en la base de datos ✅';
