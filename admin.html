@@ -3333,6 +3333,22 @@
     </style>
     <!-- IMPL-20260711-01 — Lucide icons (SPEC-005) -->
     <script src="assets/js/lucide.min.js"></script>
+    <style>
+      /* IMPL-20260711-05 — Ocultar página pública cuando admin.html está cargada */
+      body > header,
+      body > section,
+      body > footer,
+      body > a.whatsapp-float,
+      .hero-section,
+      main.hero-section,
+      .navbar:not(.admin-overlay *) {
+        display: none !important;
+      }
+      /* Solo mostrar el admin overlay */
+      body {
+        background: #F8F9FA;
+      }
+    </style>
   </head>
   <body>
     <header class="navbar" aria-label="Navegación principal">
@@ -6366,5 +6382,27 @@
       </div>
     </div>
   </div>
-  </body>
+
+  <script>
+    // IMPL-20260711-05 — Auto-abrir admin al cargar /admin
+    // FIX: init() en index.html solo abre el overlay si NO hay sesión.
+    // En admin.html siempre queremos abrir el overlay, haya sesión o no.
+    function autoOpenAdmin() {
+      const overlay = document.getElementById('adminOverlay');
+      if (overlay) {
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        // Si ya hay sesión, syncRoleUI ya puso adminPanelApp visible
+        // Si no hay sesión, syncRoleUI mostrará el loginBox
+        if (typeof syncRoleUI === 'function') syncRoleUI();
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
+    } else {
+      // DOM ya está listo
+      autoOpenAdmin();
+    }
+  </script>
+</body>
 </html>
