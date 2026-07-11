@@ -2,28 +2,32 @@
 
 **Fuente de verdad del backlog.** Toda tarea en `[ ]` debe tener un ADR o SPEC asociado antes de pasar a `[~] Planificado`. Cronista mantiene este archivo sincronizado.
 
-**Última actualización:** 2026-07-11 00:45 (Fase 1 completada: backend servicios CRUD)  
-**Versión actual:** v4.1.0-dev  
+**Última actualización:** 2026-07-11 18:05 (Deudas técnicas corregidas)  
+**Versión actual:** v4.2.0  
 **Rama:** `main`
 
 ---
 
-## 📋 Micro-Sprint activo: `ADMIN-PROFESIONAL-20260711`
+## 📋 Micro-Sprint completado: `ADMIN-PROFESIONAL-20260711`
 
 **Fecha inicio:** 2026-07-11  
+**Fecha fin:** 2026-07-11  
 **Objetivo:** Sistema admin profesional autogestionable con CRUD completo de productos y servicios, diseño moderno y responsive.  
 **SPEC maestro:** [`context/SPECs/MICRO-SPRINT-20260711-admin-profesional.md`](context/SPECs/MICRO-SPRINT-20260711-admin-profesional.md)  
-**ADR:** [`context/decisions/ADR-20260711-01-reutilizar-backend-railway.md`](context/decisions/ADR-20260711-01-reutilizar-backend-railway.md)
+**ADR:** [`context/decisions/ADR-20260711-01-reutilizar-backend-railway.md`](context/decisions/ADR-20260711-01-reutilizar-backend-railway.md)  
+**Estado:** ✅ **COMPLETADO**
 
 ### Fases
 
 | Fase | Descripción | Estado | Timeline |
 |------|-------------|--------|----------|
 | **1** | Backend: tabla + endpoints servicios | ✅ **Completada** | Día 1 |
-| **2** | Frontend: rediseño completo admin | ⏳ Pendiente | Días 2-3 |
-| **3** | Frontend: CRUD productos | ⏳ Pendiente | Días 3-4 |
-| **4** | Frontend: CRUD servicios | ⏳ Pendiente | Días 4-5 |
-| **5** | Frontend: cache invalidation | ⏳ Pendiente | Día 5 |
+| **2** | Frontend: rediseño completo admin | ✅ **Completada** | Días 2-3 |
+| **3** | Frontend: CRUD productos | ✅ **Completada** | Días 3-4 |
+| **4** | Frontend: CRUD servicios | ✅ **Completada** | Días 4-5 |
+| **5** | Frontend: cache invalidation | ✅ **Completada** | Día 5 |
+| **6** | Correcciones GEMINI (XSS, ARIA, Lucide) | ✅ **Completada** | Día 5 |
+| **7** | Deudas técnicas (last-update, payroll) | ✅ **Completada** | Día 5 |
 
 ### Fase 1: Backend servicios ✅
 
@@ -36,18 +40,47 @@
 - ✅ Tabla `services` en PostgreSQL (10 columnas + 2 índices)
 - ✅ 8 servicios seed (3 principales + 5 secundarios)
 - ✅ Endpoints CRUD completos (GET, POST, PATCH, DELETE)
-- ✅ Endpoint `last-update` para cache invalidation
 - ✅ 18/18 tests E2E pasaron
 - ✅ Verificación con Playwright OK
 - ✅ Deploy a producción Railway OK
 
-**Verificación:**
-- ✅ Revisión de código por INTEGRA
-- ✅ Pruebas E2E con Playwright
-- ✅ Página pública funciona sin errores
-- ✅ Admin panel funciona sin errores
+### Fases 2-5: Sistema admin profesional ✅
 
-**Pendiente:** Revisión visual por humano antes de proceder a Fase 2.
+**Implementado por:** SOFIA  
+**Commit:** `3869ceb` en `frank-vcorp/detailinghouse`  
+**Checkpoint:** [`context/checkpoints/CHK_2026-07-11_0115_fases-2-5-admin-profesional.md`](context/checkpoints/CHK_2026-07-11_0115_fases-2-5-admin-profesional.md)
+
+**Entregables:**
+- ✅ Rediseño completo con sidebar y 8 secciones
+- ✅ CRUD productos: editar nombre/precio/descripción/categoría/presentación + eliminar
+- ✅ CRUD servicios: crear/editar/eliminar con validación SRV-XXX
+- ✅ POS conectado a state.services
+- ✅ Cache invalidation con polling y cross-tab sync
+- ✅ Modales profesionales con backdrop click + ESC close
+- ✅ Responsive completo (desktop/tablet/mobile)
+
+### Fase 6: Correcciones GEMINI ✅
+
+**Implementado por:** SOFIA  
+**Commits:** `05fb6cd`, `9dc947c`, `4e3e293` en `frank-vcorp/detailinghouse`
+
+**Entregables:**
+- ✅ XSS fix en renderServicesStrip
+- ✅ ARIA fix en admin-shell
+- ✅ Iconos Lucide (archivo local, 402KB)
+- ✅ Refactor bindCrudInteractions en 3 funciones
+
+### Fase 7: Deudas técnicas ✅
+
+**Implementado por:** SOFIA  
+**Commits:** `94ed704` (backend), `c6d13f4` (frontend)  
+**Checkpoint:** [`context/checkpoints/CHK_2026-07-11_1805_deudas-tecnicas-corregidas.md`](context/checkpoints/CHK_2026-07-11_1805_deudas-tecnicas-corregidas.md)
+
+**Entregables:**
+- ✅ Endpoint `/api/inventory/last-update` implementado en backend
+- ✅ Bug FIX-20260710-17 (payroll 403 para staff) corregido
+- ✅ 0 errores en consola (admin, staff, página pública)
+- ✅ Cache invalidation funcionando correctamente
 
 ---
 
