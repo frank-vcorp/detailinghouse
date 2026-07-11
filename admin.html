@@ -3334,18 +3334,9 @@
     <!-- IMPL-20260711-01 — Lucide icons (SPEC-005) -->
     <script src="assets/js/lucide.min.js"></script>
     <style>
-      /* IMPL-20260711-05 — Ocultar página pública cuando admin.html está cargada */
-      body > header,
-      body > section,
-      body > footer,
-      body > a.whatsapp-float,
-      .hero-section,
-      main.hero-section,
-      .navbar:not(.admin-overlay *) {
-        display: none !important;
-      }
-      /* Solo mostrar el admin overlay */
-      body {
+      /* IMPL-20260711-06 — admin.html: limpiar página pública antes de mostrar admin
+         La estrategia CSS con :not() es frágil. Mejor remover del DOM con JS. */
+      .admin-overlay {
         background: #F8F9FA;
       }
     </style>
@@ -6384,23 +6375,52 @@
   </div>
 
   <script>
-    // IMPL-20260711-05 — Auto-abrir admin al cargar /admin
-    // FIX: init() en index.html solo abre el overlay si NO hay sesión.
-    // En admin.html siempre queremos abrir el overlay, haya sesión o no.
+    // IMPL-20260711-06 — Auto-abrir admin al cargar /admin
+    // 1. Eliminar elementos de la página pública del DOM
+    // 2. Abrir el overlay siempre (haya sesión o no)
+    // 3. Forzar viewport a desktop para que el sidebar se muestre completo
     function autoOpenAdmin() {
+      // Eliminar elementos públicos del DOM
+      const publicSelectors = [
+        'header.navbar',
+        '.hero-section',
+        'main.hero-section',
+        'section:not(#adminOverlay *)',
+        'footer',
+        'a.whatsapp-float'
+      ];
+      publicSelectors.forEach(sel => {
+        try {
+          document.querySelectorAll(sel).forEach(el => {
+            // Solo eliminar si NO está dentro del admin overlay
+            if (!el.closest('#adminOverlay')) {
+              el.remove();
+            }
+          });
+        } catch (e) { /* selector complejo, ignorar */ }
+      });
+      // Eliminar scripts de WhatsApp flotante y otros elementos sueltos
+      document.querySelectorAll('body > *').forEach(el => {
+        if (el.id === 'adminOverlay') return;
+        if (el.tagName === 'SCRIPT') return; // mantener scripts
+        if (el.tagName === 'STYLE') return;  // mantener styles
+        // Si no está dentro del overlay, eliminar
+        if (!el.closest || !el.closest('#adminOverlay')) {
+          el.remove();
+        }
+      });
+      
+      // Abrir overlay
       const overlay = document.getElementById('adminOverlay');
       if (overlay) {
         overlay.classList.add('open');
         overlay.setAttribute('aria-hidden', 'false');
-        // Si ya hay sesión, syncRoleUI ya puso adminPanelApp visible
-        // Si no hay sesión, syncRoleUI mostrará el loginBox
         if (typeof syncRoleUI === 'function') syncRoleUI();
       }
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', autoOpenAdmin);
     } else {
-      // DOM ya está listo
       autoOpenAdmin();
     }
   </script>
