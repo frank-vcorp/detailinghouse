@@ -2920,12 +2920,37 @@
       .admin-sidebar .sidebar-header {
         padding: 24px;
         border-bottom: 1px solid #E1E4E8;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .admin-sidebar .sidebar-header .brand-shield {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8F9FA;
+        border-radius: 8px;
+      }
+      .admin-sidebar .sidebar-header .brand-text {
+        display: flex;
+        flex-direction: column;
       }
       .admin-sidebar .sidebar-header h1 {
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         color: #24292E;
         margin: 0;
+        letter-spacing: 0.05em;
+      }
+      .admin-sidebar .sidebar-header .brand-sub {
+        font-size: 10px;
+        color: #586069;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-top: 2px;
       }
       .admin-sidebar .sidebar-nav {
         flex: 1;
@@ -4077,7 +4102,27 @@
       <div class="admin-shell" aria-labelledby="adminPanelTitle">
         <aside class="admin-sidebar" id="adminSidebar">
           <div class="sidebar-header">
-            <h1>🏠 DetailingHouse</h1>
+            <div class="brand-shield" aria-hidden="true">
+              <svg viewBox="0 0 64 64" width="28" height="28" fill="none">
+                <path
+                  d="M32 4 52 12v16c0 14.5-8.7 24.7-20 32C20.7 52.7 12 42.5 12 28V12L32 4Z"
+                  stroke="#0366D6"
+                  stroke-width="3"
+                  fill="rgba(3,102,214,.08)"
+                />
+                <path
+                  d="M20 20h8c5.8 0 10 4.2 10 10s-4.2 10-10 10h-8V20Zm24 0h-6v20h6"
+                  stroke="#0366D6"
+                  stroke-width="3.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="brand-text">
+              <h1>DETAILINGHOUSE</h1>
+              <span class="brand-sub">Panel de Administración</span>
+            </div>
           </div>
           <nav class="sidebar-nav" id="adminSidebarNav">
             <a href="#" class="nav-item active" data-tab="pos" data-roles="admin,staff">
