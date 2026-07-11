@@ -201,16 +201,11 @@
         min-width: 0;
       }
 
-      .brand-shield {
+      .brand-logo-img {
         width: 48px;
         height: 48px;
         flex: 0 0 48px;
-        display: grid;
-        place-items: center;
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: var(--shadow);
+        object-fit: contain;
       }
 
       .brand-copy {
@@ -3343,23 +3338,7 @@
     <header class="navbar" aria-label="Navegación principal">
       <div class="container nav-inner">
         <a href="#inicio" class="brand" aria-label="Ir a inicio DetailingHouse">
-          <div class="brand-shield" aria-hidden="true">
-            <svg viewBox="0 0 64 64" width="34" height="34" fill="none">
-              <path
-                d="M32 4 52 12v16c0 14.5-8.7 24.7-20 32C20.7 52.7 12 42.5 12 28V12L32 4Z"
-                stroke="#d1d5db"
-                stroke-width="3"
-                fill="rgba(220,38,38,.12)"
-              />
-              <path
-                d="M20 20h8c5.8 0 10 4.2 10 10s-4.2 10-10 10h-8V20Zm24 0h-6v20h6"
-                stroke="#ffffff"
-                stroke-width="3.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </div>
+          <img src="assets/images/escudo-detailinghouse-transparente.png" alt="DetailingHouse" class="brand-logo-img" />
           <div class="brand-copy">
             <strong>DETAILINGHOUSE</strong>
             <span>El Arte del Cuidado</span>
@@ -3995,12 +3974,7 @@
         <div class="footer-grid">
           <div class="footer-brand">
             <a href="#inicio" class="brand" aria-label="Ir a inicio DetailingHouse">
-              <div class="brand-shield" aria-hidden="true">
-                <svg viewBox="0 0 64 64" width="34" height="34" fill="none">
-                  <path d="M32 4 52 12v16c0 14.5-8.7 24.7-20 32C20.7 52.7 12 42.5 12 28V12L32 4Z" stroke="#d1d5db" stroke-width="3" fill="rgba(220,38,38,.12)"></path>
-                  <path d="M20 20h8c5.8 0 10 4.2 10 10s-4.2 10-10 10h-8V20Zm24 0h-6v20h6" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
-              </div>
+              <img src="assets/images/escudo-detailinghouse-transparente.png" alt="DetailingHouse" class="brand-logo-img" />
               <div class="brand-copy">
                 <strong>DETAILINGHOUSE</strong>
                 <span>El Arte del Cuidado</span>
