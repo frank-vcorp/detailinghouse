@@ -5445,8 +5445,10 @@
     byId('adminLoginBox').style.display = role ? 'none' : 'block';
     byId('adminPanelApp').classList.toggle('active', !!role);
     // FASE 2: filtro de visibilidad por rol en sidebar nav
+    // FIX-20260711-08: cuando NO hay sesión, mostrar todos los items
+    // (al click redirigen al login). Solo filtrar cuando SÍ hay rol.
     document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]').forEach(item => {
-      const allowed = (item.dataset.roles || '').split(',').includes(role);
+      const allowed = !role || (item.dataset.roles || '').split(',').includes(role);
       item.style.display = allowed ? '' : 'none';
     });
     if (!role) return;

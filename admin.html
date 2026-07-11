@@ -201,26 +201,11 @@
         min-width: 0;
       }
 
-.brand-logo {
+      .brand-logo-img {
         width: 48px;
         height: 48px;
-        flex-shrink: 0;
+        flex: 0 0 48px;
         object-fit: contain;
-      }
-
-      .brand-text {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-
-      .brand-sub {
-        font-size: 10px;
-        color: #586069;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-top: 2px;
-        font-weight: 500;
       }
 
       .brand-copy {
@@ -2895,8 +2880,7 @@
          ═══════════════════════════════════════════════════════════════ */
       .admin-shell {
         display: flex;
-        flex-direction: row;
-        height: 100vh;
+        height: 100dvh;
         background: #F8F9FA;
       }
       .admin-sidebar {
@@ -2910,19 +2894,14 @@
         transition: transform 0.3s ease;
       }
       .admin-sidebar .sidebar-header {
-        padding: 20px 24px;
+        padding: 24px;
         border-bottom: 1px solid #E1E4E8;
-        display: flex;
-        align-items: center;
-        gap: 12px;
       }
       .admin-sidebar .sidebar-header h1 {
-        font-size: 15px;
-        font-weight: 700;
+        font-size: 18px;
+        font-weight: 600;
         color: #24292E;
         margin: 0;
-        letter-spacing: 0.06em;
-        line-height: 1.1;
       }
       .admin-sidebar .sidebar-nav {
         flex: 1;
@@ -3354,13 +3333,6 @@
     </style>
     <!-- IMPL-20260711-01 — Lucide icons (SPEC-005) -->
     <script src="assets/js/lucide.min.js"></script>
-    <style>
-      /* IMPL-20260711-06 — admin.html: limpiar página pública antes de mostrar admin
-         La estrategia CSS con :not() es frágil. Mejor remover del DOM con JS. */
-      .admin-overlay {
-        background: #F8F9FA;
-      }
-    </style>
   </head>
   <body>
     <header class="navbar" aria-label="Navegación principal">
@@ -3833,11 +3805,7 @@
       <div class="admin-shell" aria-labelledby="adminPanelTitle">
         <aside class="admin-sidebar" id="adminSidebar">
           <div class="sidebar-header">
-            <img src="assets/images/escudo-detailinghouse-transparente.png" alt="DetailingHouse" class="brand-logo" />
-            <div class="brand-text">
-              <h1>DETAILINGHOUSE</h1>
-              <span class="brand-sub">Panel de Administración</span>
-            </div>
+            <h1>🏠 DetailingHouse</h1>
           </div>
           <nav class="sidebar-nav" id="adminSidebarNav">
             <a href="#" class="nav-item active" data-tab="pos" data-roles="admin,staff">
@@ -5477,8 +5445,10 @@
     byId('adminLoginBox').style.display = role ? 'none' : 'block';
     byId('adminPanelApp').classList.toggle('active', !!role);
     // FASE 2: filtro de visibilidad por rol en sidebar nav
+    // FIX-20260711-08: cuando NO hay sesión, mostrar todos los items
+    // (al click redirigen al login). Solo filtrar cuando SÍ hay rol.
     document.querySelectorAll('#adminSidebarNav .nav-item[data-tab]').forEach(item => {
-      const allowed = (item.dataset.roles || '').split(',').includes(role);
+      const allowed = !role || (item.dataset.roles || '').split(',').includes(role);
       item.style.display = allowed ? '' : 'none';
     });
     if (!role) return;
@@ -6398,56 +6368,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // IMPL-20260711-06 — Auto-abrir admin al cargar /admin
-    // 1. Eliminar elementos de la página pública del DOM
-    // 2. Abrir el overlay siempre (haya sesión o no)
-    // 3. Forzar viewport a desktop para que el sidebar se muestre completo
-    function autoOpenAdmin() {
-      // Eliminar elementos públicos del DOM
-      const publicSelectors = [
-        'header.navbar',
-        '.hero-section',
-        'main.hero-section',
-        'section:not(#adminOverlay *)',
-        'footer',
-        'a.whatsapp-float'
-      ];
-      publicSelectors.forEach(sel => {
-        try {
-          document.querySelectorAll(sel).forEach(el => {
-            // Solo eliminar si NO está dentro del admin overlay
-            if (!el.closest('#adminOverlay')) {
-              el.remove();
-            }
-          });
-        } catch (e) { /* selector complejo, ignorar */ }
-      });
-      // Eliminar scripts de WhatsApp flotante y otros elementos sueltos
-      document.querySelectorAll('body > *').forEach(el => {
-        if (el.id === 'adminOverlay') return;
-        if (el.tagName === 'SCRIPT') return; // mantener scripts
-        if (el.tagName === 'STYLE') return;  // mantener styles
-        // Si no está dentro del overlay, eliminar
-        if (!el.closest || !el.closest('#adminOverlay')) {
-          el.remove();
-        }
-      });
-      
-      // Abrir overlay
-      const overlay = document.getElementById('adminOverlay');
-      if (overlay) {
-        overlay.classList.add('open');
-        overlay.setAttribute('aria-hidden', 'false');
-        if (typeof syncRoleUI === 'function') syncRoleUI();
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
-    } else {
-      autoOpenAdmin();
-    }
-  </script>
-</body>
+  </body>
 </html>
