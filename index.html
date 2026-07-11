@@ -5196,8 +5196,8 @@
       const body = byId('payrollCutsBody');
       if (body) body.innerHTML = state.payrollCuts.length ? state.payrollCuts.map(cut => `<tr><td>${new Date(cut.timestamp).toLocaleString('es-MX')}</td><td>${cut.range === 'weekly' ? 'Semanal' : 'Mensual'}</td><td>${formatCurrency(cut.base)}</td><td>${formatCurrency(cut.total)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">Sin cortes generados.</td></tr>';
     };
-    // Sin sesión activa: usar local (evita 401 en consola)
-    if (!apiToken) {
+    // Sin sesión activa o sin rol admin: usar local (evita 401/403 en consola)
+    if (!apiToken || state.role !== 'admin') {
       renderWithBase(getRangeSales(range).reduce((sum, sale) => sum + sale.total, 0));
       return;
     }
