@@ -6173,10 +6173,10 @@
     activateTab('pos');
     // Sync de cache público (Fase 5)
     initPublicPageCacheSync();
-    // Si no hay sesión, abrir login overlay automáticamente
-    if (!state.role) {
-      byId('openAdmin')?.click();
-    }
+    // NO abrir admin automáticamente en index.html
+    // Solo admin.html (URL /admin) debe auto-abrir el overlay
+    // FIX-20260712-09: eliminado byId('openAdmin')?.click() que redirigía
+    // incorrectamente a los usuarios de la página pública
   }
 
   init();
