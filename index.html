@@ -208,6 +208,28 @@
         object-fit: contain;
       }
 
+      .brand-logo {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        object-fit: contain;
+      }
+
+      .brand-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .brand-sub {
+        font-size: 10px;
+        color: #586069;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-top: 2px;
+        font-weight: 500;
+      }
+
       .brand-copy {
         min-width: 0;
       }
@@ -2894,14 +2916,19 @@
         transition: transform 0.3s ease;
       }
       .admin-sidebar .sidebar-header {
-        padding: 24px;
+        padding: 20px 24px;
         border-bottom: 1px solid #E1E4E8;
+        display: flex;
+        align-items: center;
+        gap: 12px;
       }
       .admin-sidebar .sidebar-header h1 {
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 15px;
+        font-weight: 700;
         color: #24292E;
         margin: 0;
+        letter-spacing: 0.06em;
+        line-height: 1.1;
       }
       .admin-sidebar .sidebar-nav {
         flex: 1;
@@ -3809,7 +3836,11 @@
       <div class="admin-shell" aria-labelledby="adminPanelTitle">
         <aside class="admin-sidebar" id="adminSidebar">
           <div class="sidebar-header">
-            <h1>🏠 DetailingHouse</h1>
+            <img src="assets/images/escudo-detailinghouse-transparente.png" alt="DetailingHouse" class="brand-logo" />
+            <div class="brand-text">
+              <h1>DETAILINGHOUSE</h1>
+              <span class="brand-sub">Panel de Administración</span>
+            </div>
           </div>
           <nav class="sidebar-nav" id="adminSidebarNav">
             <a href="#" class="nav-item active" data-tab="pos" data-roles="admin,staff">
