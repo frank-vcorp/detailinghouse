@@ -6375,5 +6375,37 @@
       </div>
     </div>
   </div>
-  </body>
+
+  <script>
+    // IMPL-20260712-10 — Auto-abrir admin al cargar /admin
+    // IMPORTANTE: este script solo debe existir en admin.html, no en index.html
+    function autoOpenAdmin() {
+      // Eliminar elementos públicos del DOM
+      try {
+        document.querySelectorAll('body > *').forEach(el => {
+          if (el.id === 'adminOverlay') return;
+          if (el.tagName === 'SCRIPT') return;
+          if (el.tagName === 'STYLE') return;
+          if (el.tagName === 'LINK') return;
+          if (!el.closest || !el.closest('#adminOverlay')) {
+            el.remove();
+          }
+        });
+      } catch (e) { /* silent */ }
+      
+      // Abrir overlay
+      const overlay = document.getElementById('adminOverlay');
+      if (overlay) {
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        if (typeof syncRoleUI === 'function') syncRoleUI();
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
+    } else {
+      autoOpenAdmin();
+    }
+  </script>
+</body>
 </html>
