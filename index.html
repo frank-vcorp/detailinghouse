@@ -4201,8 +4201,8 @@
   // ── 1. Constantes globales ────────────────────────────────────────
   const WHATSAPP_BASE = 'https://wa.me/524461153815';
   const API_BASE      = '/api';
-  const TERMINAL_RATE = 1.036;   // comisión terminal 3.6%
-  const IVA_RATE      = 1.16;    // IVA México 16%
+  const TERMINAL_RATE = 1.04;    // comisión terminal 4% (sumada automáticamente)
+  // IVA NO se aplica al precio mostrado — solo se desglosa al facturar (ADR-20260711-03)
 
   // ── 2. Catálogo fallback (ADR-20260710-04) ────────────────────────
   /**
@@ -4383,7 +4383,10 @@
   };
 
   // ── 7. Helpers puros ──────────────────────────────────────────────
-  const finalPrice     = base => Math.round(Number(base) * TERMINAL_RATE * IVA_RATE);
+  // IMPL-20260711-07 — Precio final = base × 1.04 (comisión terminal oculta, sin IVA).
+  // El backend ya devuelve precios_json con × 1.04 aplicado.
+  // NO se suma IVA — solo se desglosa al facturar (ADR-20260711-03).
+  const finalPrice     = base => Math.round(Number(base) * TERMINAL_RATE);
   const formatCurrency = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value || 0);
   const todayKey       = (date = new Date()) => new Date(date).toISOString().slice(0, 10);
   const isToday        = ts => todayKey(ts) === todayKey();
@@ -4515,7 +4518,7 @@
         </div>
         <h3>${product.name}</h3>
         <div class="price">${formatCurrency(finalPrice(product.price))}</div>
-        <div style="font-size:0.72rem;color:var(--muted);margin-top:-0.3rem;margin-bottom:0.4rem">Precio final · IVA incluido</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:-0.3rem;margin-bottom:0.4rem"></div>
         <p class="product-desc">${product.description}</p>
         <a class="btn btn-primary" href="${productMessage(product)}" target="_blank" rel="noopener">Pedir por WhatsApp</a>
       </article>
@@ -4600,7 +4603,8 @@
   };
 
   // IMPL-20260711-03 (SPEC-007) — Formatea precio público. Si es null → "Cotización"
-  // (ADR-20260711-03: el precio YA incluye IVA + comisión, NUNCA se desglosa al cliente)
+  // (ADR-20260711-03: el precio YA incluye +4% comisión terminal oculta, SIN IVA.
+  //  NUNCA se desglosa al cliente. IVA solo se menciona al facturar.)
   function formatPrice(value) {
     if (value == null) return 'Cotización';
     return '$' + Number(value).toLocaleString('es-MX');
@@ -4648,7 +4652,7 @@
               <div class="price-row"><span>Pick-up / SUV Grande</span><span>${formatPrice(pj.pickup)}</span></div>
               <div class="price-row"><span>Premium / Luxury</span><span>${formatPrice(pj.luxury)}</span></div>
             </div>
-            <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:0.35rem;text-align:right">Precio final · IVA incluido</small>
+            <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:0.35rem;text-align:right"></small>
             ${tpl.exterior ? `
               <p class="area-label exterior-label"><span class="area-emoji">🛡️</span> Exterior</p>
               <ul class="list area-list">
@@ -4972,7 +4976,6 @@
             <p class="item-desc">Detalle de auto detailing · ID ${escapeHtml(item.id)}</p>
           </div>
           <div class="price-block">
-            <small>Precio final</small>
             <strong>${formatCurrency(finalPrice(item.price))}</strong>
           </div>
         </div>
@@ -6314,7 +6317,7 @@
           <!-- Precios por tamaño de vehículo (página pública) -->
           <fieldset style="border:1px solid #E1E4E8;border-radius:8px;padding:12px;margin:16px 0">
             <legend style="font-size:13px;font-weight:600;color:#586069;padding:0 8px">Precios por tamaño de vehículo</legend>
-            <p style="font-size:12px;color:#586069;margin:0 0 12px">Precios públicos finales (IVA incluido). Dejar vacío para "Cotización".</p>
+            <p style="font-size:12px;color:#586069;margin:0 0 12px">Precios públicos (base × 1.04 comisión terminal oculta, sin IVA). Dejar vacío para "Cotización".</p>
             <div class="form-row">
               <div class="form-group">
                 <label for="servicePriceCompacto">Compacto</label>
