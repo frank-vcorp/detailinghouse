@@ -4924,7 +4924,8 @@
       if (!chip) return;
       document.querySelectorAll('.pos-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-      window.posCatalogState.cat = chip.dataset.cat || 'todos';
+      // FIX-20260713-18 — el atributo se llama data-pos-cat (no data-cat)
+      window.posCatalogState.cat = chip.dataset.posCat || 'todos';
       renderPosCatalog();
     });
     byId('posCatalogSearch')?.addEventListener('input', e => {
