@@ -2,9 +2,9 @@
 
 **Fecha:** 2026-07-13 06:01 UTC  
 **Severidad:** Alta (bloquea uso del admin)  
-**Síntoma reportado:** "no veo los módulos en pantalla"  
-**Estado:** RESUELTO en commit `495c802` (FIX-16)  
-**Recurrencia:** 4+ veces (FIX-07, sync issues, FIX-13, FIX-16)
+**Síntoma reportado:** "no veo los módulos en pantalla" / "no entra al admin"  
+**Estado:** RESUELTO en commit `495c802` (FIX-16) + `885b6b2` (FIX-19)  
+**Recurrencia:** 5+ veces (FIX-07, sync issues, FIX-13, FIX-16, FIX-19)
 
 ---
 
@@ -226,11 +226,35 @@ Si alguna tiene comportamiento incorrecto, buscar reglas duplicadas y verificar 
 
 ---
 
+## ⚠️ BUG RELACIONADO: Script `autoOpenAdmin` perdido (FIX-19)
+
+**Síntoma:** "no entra al admin" (mismo síntoma que FIX-16 pero causa diferente)
+
+**Causa raíz:** Cada vez que uso `cp index.html admin.html` para sincronizar, el script `autoOpenAdmin` (que solo existe en admin.html) se PIERDE.
+
+**Diagnóstico rápido:**
+```js
+typeof autoOpenAdmin
+// Si retorna "undefined" → script perdido, aplicar FIX-19
+```
+
+**Fix:** Agregar el script manualmente en `admin.html` (NO usar cp). Ver snippet en commit `885b6b2`.
+
+**Prevención:** Después de cada `cp index.html admin.html`, ejecutar:
+```bash
+grep -c "autoOpenAdmin" admin.html
+# Debe ser >0. Si es 0, restaurar el script.
+```
+
+---
+
 ## 🔗 COMMITS RELACIONADOS
 
 - `40b1992` - Primer fix del layout (FIX-07)
 - `5e3373a`, `60d44df` - Syncs que perdieron el fix
-- `495c802` - FIX-16 definitivo (este commit)
+- `495c802` - FIX-16 definitivo (flex-direction: row)
+- `9d63af4` - Sync POS que perdió el script autoOpenAdmin
+- `885b6b2` - FIX-19: restaurar script autoOpenAdmin
 
 ---
 
