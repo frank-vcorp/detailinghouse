@@ -3819,7 +3819,7 @@
 
         <div class="footer-bottom">
           <span>© 2025 DetailingHouse. El Arte del Cuidado.</span>
-          <button class="admin-link" id="openAdmin" type="button" style="background:none;border:none;padding:0">Panel Admin</button>
+          <a href="/admin" class="admin-link" style="text-decoration:none;color:inherit">Panel Admin</a>
         </div>
       </div>
     </footer>
@@ -5524,11 +5524,12 @@
   }
 
   function bindAdminInteractions() {
-    byId('openAdmin')?.addEventListener('click', () => {
-      byId('adminOverlay').classList.add('open');
-      syncRoleUI();
+    // FIX-20260712-14: openAdmin ahora es un link a /admin (cambia URL)
+    // El handler de openAdmin/.click() ya no es necesario
+    byId('closeAdmin')?.addEventListener('click', () => {
+      // FIX-20260712-14: cerrar admin navega a la raíz (no solo oculta overlay)
+      window.location.href = '/';
     });
-    byId('closeAdmin')?.addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
     byId('adminLoginBtn')?.addEventListener('click', handleLogin);
     byId('adminLogoutBtn')?.addEventListener('click', handleLogout);
     // FASE 2: clicks en sidebar nav + hamburger

@@ -3819,7 +3819,7 @@
 
         <div class="footer-bottom">
           <span>© 2025 DetailingHouse. El Arte del Cuidado.</span>
-          <button class="admin-link" id="openAdmin" type="button" style="background:none;border:none;padding:0">Panel Admin</button>
+          <a href="/admin" class="admin-link" style="text-decoration:none;color:inherit">Panel Admin</a>
         </div>
       </div>
     </footer>
@@ -5524,11 +5524,12 @@
   }
 
   function bindAdminInteractions() {
-    byId('openAdmin')?.addEventListener('click', () => {
-      byId('adminOverlay').classList.add('open');
-      syncRoleUI();
+    // FIX-20260712-14: openAdmin ahora es un link a /admin (cambia URL)
+    // El handler de openAdmin/.click() ya no es necesario
+    byId('closeAdmin')?.addEventListener('click', () => {
+      // FIX-20260712-14: cerrar admin navega a la raíz (no solo oculta overlay)
+      window.location.href = '/';
     });
-    byId('closeAdmin')?.addEventListener('click', () => byId('adminOverlay').classList.remove('open'));
     byId('adminLoginBtn')?.addEventListener('click', handleLogin);
     byId('adminLogoutBtn')?.addEventListener('click', handleLogout);
     // FASE 2: clicks en sidebar nav + hamburger
@@ -6406,47 +6407,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // FIX-20260712-13 — Auto-abrir admin y BLOQUEAR render público (admin.html)
-    function autoOpenAdmin() {
-      // 1. Eliminar elementos públicos del DOM
-      try {
-        document.querySelectorAll('body > *').forEach(el => {
-          if (el.id === 'adminOverlay') return;
-          if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
-          if (!el.closest || !el.closest('#adminOverlay')) {
-            el.remove();
-          }
-        });
-      } catch (e) {}
-
-      // 2. FIX: Override de las funciones públicas para que el polling cada 60s
-      //    no vuelva a renderizar los servicios/productos públicos.
-      //    (initPublicPageCacheSync → loadPublicData → renderPublicServices/Products)
-      try {
-        window.renderPublicProducts = function() { /* no-op en admin */ };
-        window.renderPublicServices = function() { /* no-op en admin */ };
-        // También intentar limpiar el timer del polling si ya está creado
-        if (window.pollingTimer) {
-          clearInterval(window.pollingTimer);
-          window.pollingTimer = null;
-        }
-      } catch (e) {}
-
-      // 3. Abrir overlay
-      const overlay = document.getElementById('adminOverlay');
-      if (overlay) {
-        overlay.classList.add('open');
-        overlay.setAttribute('aria-hidden', 'false');
-        if (typeof syncRoleUI === 'function') syncRoleUI();
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
-    } else {
-      autoOpenAdmin();
-    }
-  </script>
-</body>
+  </body>
 </html>
