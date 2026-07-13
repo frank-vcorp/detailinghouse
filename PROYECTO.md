@@ -84,6 +84,21 @@
 
 ---
 
+## 🐛 Bug recurrente: layout admin roto (FIX-16, 2026-07-13)
+
+**Síntoma:** "no veo los módulos en pantalla" cuando el admin está logueado.
+
+**Causa raíz:** Regla CSS vieja `.admin-shell { flex-direction: column }` no es sobrescrita por la regla nueva que omite esa propiedad.
+
+**Solución:** Agregar `flex-direction: row` explícito a la regla `.admin-shell` en línea 2903 de AMBOS archivos (index.html y admin.html). NO usar `cp` para sincronizar (puede sobrescribir cambios únicos de admin.html).
+
+**Checkpoint completo:** [`context/checkpoints/CHK-2026-07-13-0601-FIX16-admin-layout-bug.md`](context/checkpoints/CHK-2026-07-13-0601-FIX16-admin-layout-bug.md)
+- Diagnóstico paso a paso
+- 4+ recurrencias documentadas
+- Lección aprendida sobre `cp` vs sincronización manual
+
+---
+
 ## 📋 Micro-Sprint anterior: `FIX-20260710-01` (completado)
 
 **Fecha:** 2026-07-10
