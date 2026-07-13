@@ -4915,6 +4915,22 @@
         }
       });
     }
+    // FIX-20260713-17 — Filtros del POS (chips de categoría + búsqueda)
+    if (!window.posCatalogState) {
+      window.posCatalogState = { query: '', cat: 'todos' };
+    }
+    byId('posCatalogChips')?.addEventListener('click', e => {
+      const chip = e.target.closest('.pos-chip');
+      if (!chip) return;
+      document.querySelectorAll('.pos-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      window.posCatalogState.cat = chip.dataset.cat || 'todos';
+      renderPosCatalog();
+    });
+    byId('posCatalogSearch')?.addEventListener('input', e => {
+      window.posCatalogState.query = e.target.value || '';
+      renderPosCatalog();
+    });
     // Menú móvil
     byId('navToggle')?.addEventListener('click', () => {
       const menu = byId('mobileMenu');

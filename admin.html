@@ -4915,6 +4915,22 @@
         }
       });
     }
+    // FIX-20260713-17 — Filtros del POS (chips de categoría + búsqueda)
+    if (!window.posCatalogState) {
+      window.posCatalogState = { query: '', cat: 'todos' };
+    }
+    byId('posCatalogChips')?.addEventListener('click', e => {
+      const chip = e.target.closest('.pos-chip');
+      if (!chip) return;
+      document.querySelectorAll('.pos-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      window.posCatalogState.cat = chip.dataset.cat || 'todos';
+      renderPosCatalog();
+    });
+    byId('posCatalogSearch')?.addEventListener('input', e => {
+      window.posCatalogState.query = e.target.value || '';
+      renderPosCatalog();
+    });
     // Menú móvil
     byId('navToggle')?.addEventListener('click', () => {
       const menu = byId('mobileMenu');
@@ -6408,39 +6424,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // FIX-20260712-15 — Auto-abrir admin (SOLO en admin.html)
-    function autoOpenAdmin() {
-      try {
-        document.querySelectorAll('body > *').forEach(el => {
-          if (el.id === 'adminOverlay') return;
-          if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
-          if (!el.closest || !el.closest('#adminOverlay')) {
-            el.remove();
-          }
-        });
-      } catch (e) {}
-      try {
-        window.renderPublicProducts = function() {};
-        window.renderPublicServices = function() {};
-        if (window.pollingTimer) {
-          clearInterval(window.pollingTimer);
-          window.pollingTimer = null;
-        }
-      } catch (e) {}
-      const overlay = document.getElementById('adminOverlay');
-      if (overlay) {
-        overlay.classList.add('open');
-        overlay.setAttribute('aria-hidden', 'false');
-        if (typeof syncRoleUI === 'function') syncRoleUI();
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
-    } else {
-      autoOpenAdmin();
-    }
-  </script>
-</body>
+  </body>
 </html>
