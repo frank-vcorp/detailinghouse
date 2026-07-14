@@ -6427,5 +6427,39 @@
       </div>
     </div>
   </div>
-  </body>
+
+  <script>
+    // FIX-20260714-21 — Auto-abrir admin (re-añadido tras perderlo por cp)
+    function autoOpenAdmin() {
+      try {
+        document.querySelectorAll('body > *').forEach(el => {
+          if (el.id === 'adminOverlay') return;
+          if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
+          if (!el.closest || !el.closest('#adminOverlay')) {
+            el.remove();
+          }
+        });
+      } catch (e) {}
+      try {
+        window.renderPublicProducts = function() {};
+        window.renderPublicServices = function() {};
+        if (window.pollingTimer) {
+          clearInterval(window.pollingTimer);
+          window.pollingTimer = null;
+        }
+      } catch (e) {}
+      const overlay = document.getElementById('adminOverlay');
+      if (overlay) {
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        if (typeof syncRoleUI === 'function') syncRoleUI();
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', autoOpenAdmin);
+    } else {
+      autoOpenAdmin();
+    }
+  </script>
+</body>
 </html>
