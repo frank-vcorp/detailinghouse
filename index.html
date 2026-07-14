@@ -4924,7 +4924,8 @@
       if (!chip) return;
       document.querySelectorAll('.pos-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-      window.posCatalogState.cat = chip.dataset.cat || 'todos';
+      // FIX-20260713-18 — el atributo se llama data-pos-cat (no data-cat)
+      window.posCatalogState.cat = chip.dataset.posCat || 'todos';
       renderPosCatalog();
     });
     byId('posCatalogSearch')?.addEventListener('input', e => {
@@ -5452,6 +5453,8 @@
       state.cart.length = 0;
       if (success) success.textContent = 'Venta registrada en la base de datos ✅';
       updateAll();
+      // FIX-20260714-20 — cerrar cart drawer después de registrar venta
+      if (typeof toggleFloatingCart === 'function') toggleFloatingCart(false);
     } catch (e) {
       if (error) error.textContent = `Error al registrar venta: ${e.message}`;
     }
