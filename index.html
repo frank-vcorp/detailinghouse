@@ -4167,6 +4167,8 @@
                 <article class="kpi"><span>Utilidad neta</span><strong id="dashNetToday">$0</strong></article>
                 <article class="kpi"><span>Clientes atendidos</span><strong id="dashClientsToday">0</strong></article>
                 <article class="kpi"><span>Ticket promedio</span><strong id="dashAvgTicket">$0</strong></article>
+                <article class="kpi" title="Total de visitas a la página /citas del QR"><span>Visitas desde QR</span><strong id="dashQrVisits">0</strong></article>
+                <article class="kpi" title="Total de aperturas de WhatsApp desde /citas"><span>Aperturas de WhatsApp</span><strong id="dashQrWhatsapp">0</strong></article>
               </div>
               <div class="hidden" aria-hidden="true">
                 <span id="kpiSalesCount">0</span>
@@ -4380,6 +4382,8 @@
     registerSale:  (data) => api.request('/sales', { method: 'POST', body: JSON.stringify(data) }),
     // FIX-20260710-06: dashboard server-side (devuelve {today, week, month, chart, clients_today, low_stock})
     getDashboard:  () => api.request('/sales/dashboard'),
+    // FEATURE-20260907-01 — contadores agregados del QR /citas
+    getQrSummary:  () => api.request('/qr-events/summary'),
     // Appointments
     getAppointments:    () => api.request('/appointments'),
     addAppointment:     (data) => api.request('/appointments', { method: 'POST', body: JSON.stringify(data) }),
@@ -5291,6 +5295,7 @@
     if (!apiToken) {
       renderDashboardLocal();
       renderDashboardRest();
+      renderQrCounters();
       return;
     }
     api.getDashboard().then(dashData => {
@@ -5308,10 +5313,35 @@
         renderDashboardLocal();
       }
       renderDashboardRest();
+      renderQrCounters();
     }).catch(e => {
       console.warn('[API] getDashboard falló, usando cálculo local:', e.message);
       renderDashboardLocal();
       renderDashboardRest();
+      renderQrCounters();
+    });
+  }
+
+  // FEATURE-20260907-01 — KPIs del QR /citas. Sólo con sesión admin.
+  function renderQrCounters() {
+    const visitEl    = byId('dashQrVisits');
+    const whatsappEl = byId('dashQrWhatsapp');
+    if (!visitEl && !whatsappEl) return;
+    if (!apiToken) {
+      // Sin sesión, mantener los valores por defecto (0) sin generar error en consola.
+      if (visitEl)    visitEl.textContent    = '0';
+      if (whatsappEl) whatsappEl.textContent = '0';
+      return;
+    }
+    api.getQrSummary().then(data => {
+      if (!data || typeof data !== 'object') return;
+      if (visitEl)    visitEl.textContent    = String(Number(data.visit        || 0));
+      if (whatsappEl) whatsappEl.textContent = String(Number(data.whatsapp_open || 0));
+    }).catch(e => {
+      console.warn('[API] getQrSummary falló:', e.message);
+      // Mantener 0 si falla; nunca romper el dashboard.
+      if (visitEl)    visitEl.textContent    = '0';
+      if (whatsappEl) whatsappEl.textContent = '0';
     });
   }
 

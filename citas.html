@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DetailingHouse · Conectando con WhatsApp</title>
+  <meta name="description" content="Te estamos conectando con DetailingHouse por WhatsApp para agendar tu servicio." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/png" href="favicon.ico" />
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --card: #131a26;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #25d366;
+      --accent-dark: #128c7e;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(160deg, #0b0f17 0%, #131a26 100%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+    main {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    .brand { font-weight: 700; font-size: 1.1rem; letter-spacing: 0.05em; color: var(--muted); text-transform: uppercase; margin-bottom: 1.25rem; }
+    .icon {
+      width: 72px; height: 72px; margin: 0 auto 1rem;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35);
+    }
+    .icon svg { width: 38px; height: 38px; fill: #fff; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.5rem; line-height: 1.3; }
+    p  { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .progress { width: 100%; height: 6px; background: #1f2937; border-radius: 999px; overflow: hidden; margin: 0.5rem 0 1.5rem; }
+    .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
+    .count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; margin-bottom: 1.25rem; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      width: 100%;
+      background: var(--accent); color: #fff; border: 0; border-radius: 999px;
+      padding: 0.95rem 1.25rem; font-size: 1rem; font-weight: 600; cursor: pointer;
+      text-decoration: none; transition: background 0.2s, transform 0.05s;
+    }
+    .btn:hover, .btn:focus-visible { background: var(--accent-dark); outline: none; }
+    .btn:active { transform: scale(0.99); }
+    .fallback { color: var(--muted); font-size: 0.8rem; margin-top: 1.25rem; }
+    .fallback a { color: var(--accent); text-decoration: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  </style>
+</head>
+<body>
+  <main role="main" aria-labelledby="title">
+    <div class="brand">DetailingHouse</div>
+    <div class="icon" aria-hidden="true">
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16.001 3C9.373 3 4 8.373 4 15c0 2.65.86 5.106 2.318 7.097L4 29l7.084-2.27A11.94 11.94 0 0 0 16 27c6.627 0 12-5.373 12-12S22.628 3 16.001 3zm0 21.6a9.55 9.55 0 0 1-4.873-1.335l-.35-.207-4.205 1.348 1.366-4.098-.228-.367A9.6 9.6 0 1 1 16.001 24.6zm5.546-7.18c-.302-.151-1.787-.882-2.064-.982-.277-.1-.479-.151-.681.151-.202.302-.78.982-.957 1.184-.176.202-.353.227-.655.076-.302-.151-1.273-.469-2.424-1.494-.896-.798-1.501-1.784-1.677-2.086-.176-.302-.019-.466.132-.617.135-.135.302-.353.453-.53.151-.176.202-.302.302-.504.1-.202.05-.378-.025-.53-.076-.151-.681-1.638-.933-2.244-.246-.59-.497-.51-.681-.52-.176-.008-.378-.01-.58-.01-.202 0-.53.076-.807.378-.277.302-1.058 1.033-1.058 2.518 0 1.485 1.083 2.92 1.234 3.122.151.202 2.131 3.255 5.166 4.566.722.312 1.285.498 1.724.637.724.23 1.383.198 1.904.12.581-.087 1.787-.73 2.04-1.435.252-.706.252-1.31.176-1.435-.076-.126-.277-.202-.58-.353z"/></svg>
+    </div>
+    <h1 id="title">Te estamos conectando con WhatsApp</h1>
+    <p>Espera un momento, te llevamos con el equipo de DetailingHouse para agendar tu servicio.</p>
+
+    <div class="progress" aria-hidden="true">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="count" id="countText" aria-live="polite">Abriendo en 3&hellip;</div>
+
+    <a class="btn" id="openWhatsappBtn" href="#" role="button" aria-label="Abrir WhatsApp ahora">
+      Abrir WhatsApp ahora
+    </a>
+
+    <div class="fallback">
+      Si la app no abre automáticamente, toca el botón o
+      <a id="openWhatsappLink" href="#" rel="noopener noreferrer">abre WhatsApp manualmente</a>.
+    </div>
+
+    <span class="sr-only" id="statusMessage" aria-live="polite"></span>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var WHATSAPP_NUMBER = '524461153815';
+      var WHATSAPP_TEXT   = 'Hola, escaneé el QR de DetailingHouse y quiero agendar un servicio. ¿Me ayudan con la disponibilidad?';
+      var REDIRECT_DELAY_MS = 3000;
+      var TICK_INTERVAL_MS  = 50;
+
+      var whatsappUrl = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(WHATSAPP_TEXT);
+
+      var btn         = document.getElementById('openWhatsappBtn');
+      var link        = document.getElementById('openWhatsappLink');
+      var progressBar = document.getElementById('progressBar');
+      var countText   = document.getElementById('countText');
+      var statusMsg   = document.getElementById('statusMessage');
+
+      // Asignar URL definitiva al botón y al link (siempre disponibles desde el primer render).
+      btn.setAttribute('href', whatsappUrl);
+      link.setAttribute('href', whatsappUrl);
+
+      // Guardas de tracking: como máximo un POST de cada tipo por pestaña.
+      // sessionStorage puede no estar disponible (modo privado, storage lleno,
+      // seguridad del navegador). Por eso combinamos dos planos:
+      //   1) sessionStorage (persiste dentro de la pestaña si está disponible).
+      //   2) Map en memoria (Object.create(null)) que siempre funciona.
+      var memTracked = Object.create(null);
+      var ssAvailable = (function () {
+        try {
+          var k = '__dh_probe__';
+          window.sessionStorage.setItem(k, '1');
+          window.sessionStorage.removeItem(k);
+          return true;
+        } catch (e) { return false; }
+      })();
+
+      function alreadyTracked(name) {
+        if (memTracked[name]) return true;
+        if (!ssAvailable) return false;
+        try { return window.sessionStorage.getItem(name) === '1'; } catch (e) { return false; }
+      }
+      function markTracked(name) {
+        memTracked[name] = 1;
+        if (!ssAvailable) return;
+        try { window.sessionStorage.setItem(name, '1'); } catch (e) { /* la marca en memoria ya quedó */ }
+      }
+
+      function trackEvent(name) {
+        if (alreadyTracked(name)) return;
+        markTracked(name);
+        try {
+          fetch('/api/qr-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: name }),
+            keepalive: true
+          }).catch(function () { /* el tracking jamás debe bloquear WhatsApp */ });
+        } catch (e) { /* idem */ }
+      }
+
+      // Guarda de navegación: como máximo una redirección por carga, sin importar
+      // si la disparó el temporizador automático o el click manual del usuario.
+      var tick = null;
+      var navigated = false;
+      function openWhatsapp() {
+        if (navigated) return;             // segunda llamada (manual + auto o doble click) → no-op
+        navigated = true;
+        if (tick !== null) {               // cancelar el temporizador al abrir manualmente
+          clearInterval(tick);
+          tick = null;
+        }
+        trackEvent('whatsapp_open');
+        // Damos un micro-tick para que el keepalive se envíe antes de la navegación.
+        setTimeout(function () { window.location.href = whatsappUrl; }, 60);
+      }
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        openWhatsapp();
+      });
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        openWhatsapp();
+      });
+
+      // Cuenta regresiva + barra de progreso (3 segundos).
+      var startedAt = Date.now();
+      tick = setInterval(function () {
+        var elapsed   = Date.now() - startedAt;
+        var remaining = Math.max(0, REDIRECT_DELAY_MS - elapsed);
+        var pct       = Math.min(100, (elapsed / REDIRECT_DELAY_MS) * 100);
+        progressBar.style.width = pct + '%';
+
+        var seconds = Math.ceil(remaining / 1000);
+        if (seconds >= 1) {
+          countText.textContent = 'Abriendo en ' + seconds + '\u2026';
+        } else {
+          countText.textContent = 'Abriendo\u2026';
+        }
+
+        if (remaining <= 0) {
+          clearInterval(tick);
+          tick = null;
+          openWhatsapp();
+        }
+      }, TICK_INTERVAL_MS);
+
+      // Visita: emitir en cuanto carga la página.
+      trackEvent('visit');
+    })();
+  </script>
+</body>
+</html>

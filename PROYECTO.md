@@ -2,9 +2,22 @@
 
 **Fuente de verdad del backlog.** Toda tarea en `[ ]` debe tener un ADR o SPEC asociado antes de pasar a `[~] Planificado`. Cronista mantiene este archivo sincronizado.
 
-**Última actualización:** 2026-07-11 18:05 (Deudas técnicas corregidas)  
+**Última actualización:** 2026-09-07 (FEATURE-20260907-01 en VERIFYING)  
 **Versión actual:** v4.2.0  
 **Rama:** `main`
+
+---
+
+## Incremento actual — `FEATURE-20260907-01`
+
+- Objetivo: reparar el QR físico en `/citas`, conducir a WhatsApp y medir visitas/aperturas en el dashboard admin.
+- Estado: **VERIFYING**.
+- Prioridad: P0.
+- Discovery: [`discovery/INDEX.md`](discovery/INDEX.md)
+- ADR: [`ARCH-20260907-01`](context/decisions/ADR-20260907-01-qr-citas-counter.md)
+- SPEC: [`SPEC-20260907-01`](context/SPECs/SPEC-20260907-01-qr-citas-whatsapp.md)
+- Gates: implementación SOFIA → V2 → VERIFYING; V3 y publicación sólo con autorización explícita.
+- **Pendiente:** autorización de Frank para commit/push/deploy de frontend y backend y migración aditiva de producción, antes del gate final GEMINI V3 en entorno publicado.
 
 ---
 

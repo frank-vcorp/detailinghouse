@@ -42,6 +42,8 @@
     { "source": "/api/:path*", "destination": "https://detailinghouse-api-production.up.railway.app/api/:path*" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin/", "destination": "/admin.html" },
+    { "source": "/citas", "destination": "/citas.html" },
+    { "source": "/citas/", "destination": "/citas.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
