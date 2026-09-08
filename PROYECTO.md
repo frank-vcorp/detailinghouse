@@ -2,7 +2,7 @@
 
 **Fuente de verdad del backlog.** Toda tarea en `[ ]` debe tener un ADR o SPEC asociado antes de pasar a `[~] Planificado`. Cronista mantiene este archivo sincronizado.
 
-**Última actualización:** 2026-09-07 (FEATURE-20260907-01 en VERIFYING)  
+**Última actualización:** 2026-09-08 (FEATURE-20260907-01 en BLOCKED)  
 **Versión actual:** v4.2.0  
 **Rama:** `main`
 
@@ -11,13 +11,15 @@
 ## Incremento actual — `FEATURE-20260907-01`
 
 - Objetivo: reparar el QR físico en `/citas`, conducir a WhatsApp y medir visitas/aperturas en el dashboard admin.
-- Estado: **VERIFYING**.
+- Estado: **BLOCKED** (GEMINI V3).
 - Prioridad: P0.
 - Discovery: [`discovery/INDEX.md`](discovery/INDEX.md)
 - ADR: [`ARCH-20260907-01`](context/decisions/ADR-20260907-01-qr-citas-counter.md)
 - SPEC: [`SPEC-20260907-01`](context/SPECs/SPEC-20260907-01-qr-citas-whatsapp.md)
 - Gates: implementación SOFIA → V2 → VERIFYING; V3 y publicación sólo con autorización explícita.
-- **Pendiente:** autorización de Frank para commit/push/deploy de frontend y backend y migración aditiva de producción, antes del gate final GEMINI V3 en entorno publicado.
+- Evidencia de producción funcional: backend commit `5d4033c` en Railway; frontend commit `3b345de` en Vercel; smoke post-deploy PASS (`/citas` 200, `/`, `/admin`, API POST válido/400/401); migración aditiva aplicada.
+- **Bloqueo:** GEMINI V3 no ejecutable — sesión `ses_f819ef40fffee140g2VjilIXHZ` denegada tras 2 intentos (`Access to model denied. Please make sure you are eligible for using the model.`).
+- **Próximo paso:** reanudar la misma sesión GEMINI `ses_f819ef40fffee140g2VjilIXHZ` cuando el modelo esté habilitado; no repetir implementación ni V1/V2.
 
 ---
 
